@@ -46,7 +46,7 @@ def run_file( fpath:str ):
 def run_prompt():
     '''
     Prompt the user for lines of Lox code.
-    Pass each line to the run_lox for execution.
+    Pass each line to run_lox for execution.
     Stop on KeyboardInterrupt (^c) or EOFError (^d).
     When stopping, print something with a newline so as not to
     mess up the command line in the terminal window.
