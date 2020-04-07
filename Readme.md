@@ -7,5 +7,5 @@ first in Java, then in C. The source for these along with the book are
 found at https://github.com/munificent/craftinginterpreters
 
 The purpose of this project is to translate the code into Python,
-first as a way to prove I understand the book, and second for to have
+first as a way to prove I understand the book, and second to have
 something to do while in CV Quarantine.
