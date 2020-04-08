@@ -1,7 +1,7 @@
 '''
 
 Main entry to the Lox interpreter.
-Refer to book section 4.1
+Refer to book section 4.1 and forward
 
 This work is licensed under a
   Creative Commons Attribution-NonCommercial 4.0 International License
@@ -10,12 +10,17 @@ This work is licensed under a
 '''
 
 import sys
+import Scanner
+
+# Syntax/parsing error detection flag. See book, sect. 4.1.1
+#   set: report() run_prompt()
+#   tested: run_file()
+HAD_ERROR = False
 
 def main():
     '''
-    Top level of plox: if invoked with a single file path,
-    execute the contents of that file. Invoked with no file,
-    go into interactive mode.
+    Top level of plox: if invoked with a single file path, execute the
+    contents of that file. Invoked with no file, go into interactive mode.
     '''
     num_args = len(sys.argv)
     if num_args > 2 :
@@ -32,7 +37,11 @@ def main():
 
 def run_file( fpath:str ):
     '''
-    Get the contents of a Lox source file and pass it to run_lox
+    Get the contents of a Lox source file. If an error opening the file,
+    abort with error code 66, EX_NOINPUT.
+
+    Pass the file as a single string to run_lox. If it reports an error,
+    abort the program with code 65, EX_DATAERR
     '''
     #print('running file at',fpath)
     try: # to open the file as UTF_8 text
@@ -40,16 +49,19 @@ def run_file( fpath:str ):
     except Exception as E:
         print('problem accessing',fpath)
         print(E)
-        sys.exit(78)
+        sys.exit(66)
     run_lox(f.read())
+    if HAD_ERROR : sys.exit(65)
 
 def run_prompt():
+    global HAD_ERROR
     '''
-    Prompt the user for lines of Lox code.
-    Pass each line to run_lox for execution.
-    Stop on KeyboardInterrupt (^c) or EOFError (^d).
-    When stopping, print something with a newline so as not to
+    Prompt the user for a line of Lox code. Stop on KeyboardInterrupt (^c) or
+    EOFError (^d). When stopping, print something with a newline so as not to
     mess up the command line in the terminal window.
+
+    Pass each line to run_lox for execution. After running the line, clear
+    the global HAD_ERROR.
     '''
     #print('prompting for code now')
 
@@ -63,12 +75,40 @@ def run_prompt():
             print("\n")
             sys.exit()
         run_lox(line_in)
+        HAD_ERROR = False
+
     # end while
 
 
 def run_lox(lox_code:str):
-    print('executing:',lox_code)
+    #print('executing:',lox_code)
+    scanner = Scanner(lox_code)
+    tokens = scanner.scan_tokens()
+    for token in tokens:
+        print(token)
 
+def error(line:int, message:str):
+    report(line, "", message)
+'''
+Here recreate the following Java from section 4.1.1
+
+private static void report(int line, String where, String message) {
+    System.err.println(
+        "[line " + line + "] Error" + where + ": " + message);
+    hadError = true;
+  }
+
+Note that Nystrom is using the (to me, dubious) practice of setting
+a global variable which is interrogated at a number of points in his
+main module Lox.java.
+'''
+def report(line:int, where:str, message:str):
+    global HAD_ERROR
+    print(
+        f"[line {line}] Error {where}: {message}",
+        sys.stderr
+        )
+    HAD_ERROR = True
 
 if __name__ == '__main__' :
     main()
