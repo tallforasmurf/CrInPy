@@ -16,8 +16,9 @@ This work is licensed under a
 
 
 '''
-import TokenType # all the names of lexemes e.g. COMMA, WHILE, etc.
+from TokenType import * # all the names of lexemes e.g. COMMA, WHILE, etc.
 import Token
+from typing import Callable
 
 class Scanner():
         '''
@@ -79,7 +80,7 @@ class Scanner():
         can think of for external code accessing its attributes would be for
         debugging, I am not going to bother with leading underscores.
         '''
-        def __init__(self, source:str, error_report:function ):
+        def __init__(self, source:str, error_report:Callable[[int,str],None] ):
                 self.error_report = error_report
                 self.source = source # source string
                 self.tokens = list() # collected tokens
@@ -100,7 +101,7 @@ class Scanner():
                 if self.isAtEnd() : return '\x00'
                 return self.source[self.current]
         def peek_next(self)->str:
-                if (self.current+1) => self.source_len: return '\x00'
+                if (self.current+1) >= self.source_len: return '\x00'
                 return self.source[self.current+1]
         def advance(self)->chr:
                 # presumably never called when isAtEnd()?
@@ -214,7 +215,7 @@ class Scanner():
                 '''
                 while self.peek().isdigit() :
                         self.advance()
-                if self.peek() == '.' && self.peek_next().isDigit() :
+                if self.peek() == '.' and self.peek_next().isDigit() :
                         advance() # step current over the dot
                 while self.peek().isdigit() :
                         self.advance()

@@ -82,7 +82,7 @@ def run_prompt():
 
 def run_lox(lox_code:str):
     #print('executing:',lox_code)
-    scanner = Scanner(lox_code)
+    scanner = Scanner(lox_code,error)
     tokens = scanner.scan_tokens()
     for token in tokens:
         print(token)
