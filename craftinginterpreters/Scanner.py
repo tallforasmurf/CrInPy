@@ -40,13 +40,17 @@ class Scanner():
                 self.start = 0
                 self.current = 0
                 self.line = 1
+                # factor a call out of the much-used isAtEnd()
                 self.source_len = len(source)
+                # note char position of each new line, for error displays
                 self.last_newline = 0
                 '''
-                This lengthy dict is the core of a switch statement used in scanToken().
-                The keys are expected characters. Each value is a lambda returning a TokenType.
-                Only some of the lambdas contain logic, but all must be lambdas so that the
-                result of searching the dict is always an executable. See section 4.5.
+                This lengthy dict is the core of a switch statement used in
+                scanToken(), see section 4.5. The keys are expected
+                characters. Each value is a lambda returning a TokenType.
+                Only some of the lambdas contain logic, but all must be
+                lambdas so that the result of searching the dict is always an
+                executable.
                 '''
                 self.switch_dict = {
                         '(':lambda: LEFT_PAREN,
@@ -65,6 +69,9 @@ class Scanner():
                         '>':lambda: GREATER_EQUAL if self.look_for('=') else GREATER,
                         '/':lambda: SLASH if not self.look_for('/') else None
                         }
+                '''
+                Dict (== Java Map) converting input keywords to token types
+                '''
                 self.keywords = {
                         "and":    AND,
                         "class":  CLASS,
@@ -97,7 +104,7 @@ class Scanner():
                 if (self.current+1) >= self.source_len: return '\x00'
                 return self.source[self.current+1]
         def advance(self)->chr:
-                # presumably never called when isAtEnd()?
+                # one hopes, never called when isAtEnd()?
                 c = self.source[self.current]
                 self.current += 1
                 return c
@@ -107,13 +114,12 @@ class Scanner():
                         return False
                 self.current += 1
                 return True
-
-        '''
-        Create a new Token and append it to our list. In the Java this uses
-        overloading to allow for a call that omits the 2nd argument. Python
-        uses a default argument.
-        '''
         def addToken(self, type:int, literal:object = None):
+                '''
+                Create a new Token and append it to our list. In the Java
+                this uses overloading to allow for a call that omits the 2nd
+                argument. Python uses a default argument for the same effect.
+                '''
                 lexeme = self.source[self.start:self.current]
                 self.tokens.append(
                         Token( type, lexeme, literal, self.line )
@@ -121,9 +127,9 @@ class Scanner():
 
         def scanTokens(self):
                 '''
-                Scan and collect all the tokens from the source input
-                and store them in self.tokens. Return self.tokens as well
-                (this is called from plox.run_lox())
+                Scan and collect all the tokens from the source input into
+                the list self.tokens. Return self.tokens. This is the only
+                entry to Scanner, called from plox.run_lox()
                 '''
                 while not self.isAtEnd() :
                         self.start = self.current
@@ -135,44 +141,47 @@ class Scanner():
         def scanToken(self):
                 '''
                 Collect one lexeme from the input source starting at index
-                self.start, advancing self.current.
+                self.start, advancing self.current. Append the corresponding
+                Token to self.tokens
 
                 The book's Java makes use of a switch statement. Here we use
                 the somewhat more verbose Python form, a dict whose values
-                are executables. And in order to avoid having to execute the
-                dict definition every time this method is entered, we move the
-                switch-dict out to a class variable.
-
-                Append the corresponding Token to self.tokens
+                are executables, initialized in the __init__ function.
                 '''
                 c = self.advance()
-                '''
-                Begin with one- and two-character specials.
-                '''
                 if c in self.switch_dict :
+                        # handle a one- or two-char special character
                         code = self.switch_dict[c]() #execute lambda
                         if code is not None :
+                                # normal lexeme, create token
                                 self.addToken(code)
-                        else: # lexeme is //, comment to end of line
-                                while not self.isAtEnd() and self.peek() != '\n':
+                        else:
+                                # lexeme is //, swallow comment to end of
+                                # line and do not add a token.
+                                while not self.isAtEnd()
+                                and self.peek() != '\n':
                                         self.advance()
                 elif c == '\n' :
+                        # note position of next line start, increment the
+                        # line count, but produce no token.
                         self.last_newline = self.current
-                        self.line += 1 # but no token
-                elif c.isspace() : # all Unicode whitespace (\n already done)
-                        pass # generate no token; "rider, pass on"
+                        self.line += 1
+                elif c.isspace() :
+                        # discard Unicode whitespace (\n already done)
+                        pass
                 elif c == '"' :
-                        self.string_lit() # it handles errors, adding token
+                        self.string_lit() # build a string literal token
                 elif c.isdigit() :
-                        self.number_lit() # create number literal token
+                        self.number_lit() # build a number literal token
                 elif c.isidentifier() :
                         # Python's .isidentifier(), applied to a single
                         # character, allows only valid initials of an
                         # identifier, i.e. underscore and alphabetics.
                         self.identifier() # create IDENTIFIER token
 
-                else :
-                        self.error_report(self.line, "Unexpected character", where=self.current)
+                else : # ??
+                        self.error_report(self.line, "Unexpected character",
+                                          where=self.current-self.last_newline)
         def string_lit(self):
                 '''
                 Absorb a "literal" string, adding the contents as a token.
@@ -225,15 +234,20 @@ class Scanner():
                 '''
                 Absorb a valid identifier string and make a token. Book
                 section 4.6. We can't use .isidentifier here because, applied
-                to a single char, it won't accept digits. So use isalnum plus
-                a test for underscore.
-                Note this would be a perfect place to use the "walrus" but I
-                don't have Python 3.8 yet.
+                to a single char, it doesn't accept digits. So use isalnum
+                plus a test for underscore.
+
+                The dict map of keywords to codes is initialized in __init__.
+
+                This while would be a perfect place to use the "walrus"
+                operator, but I don't have Python 3.8 yet.
                 '''
                 while self.peek().isalnum() or self.peek() == '_' :
                         self.advance()
                 text = self.source[self.start:self.current]
+                # assume it's your average tom, dick or harry
                 ttype = IDENTIFIER
+                # but if it is actually a keyword, get the right Token code.
                 if text in self.keywords :
                         ttype = self.keywords[text]
                 self.addToken(ttype)
