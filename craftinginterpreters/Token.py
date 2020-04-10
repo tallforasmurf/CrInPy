@@ -62,4 +62,4 @@ class Token:
     def toString(self):
         return str(self)
     def __str__(self):
-        return f"{self._type} {self._lexeme} {self._literal}"
+        return f"{self._type} {self._lexeme} {self._line} {self._literal}"
