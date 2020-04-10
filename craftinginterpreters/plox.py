@@ -10,7 +10,7 @@ This work is licensed under a
 '''
 
 import sys
-import Scanner
+from Scanner import Scanner
 
 # Syntax/parsing error detection flag. See book, sect. 4.1.1
 #   set: report() run_prompt()
@@ -83,12 +83,12 @@ def run_prompt():
 def run_lox(lox_code:str):
     #print('executing:',lox_code)
     scanner = Scanner(lox_code,error)
-    tokens = scanner.scan_tokens()
+    tokens = scanner.scanTokens()
     for token in tokens:
         print(token)
 
-def error(line:int, message:str):
-    report(line, "", message)
+def error(line:int, message:str, where:int=None):
+    report(line,  f"chr {where}" if where else "", message)
 '''
 Here recreate the following Java from section 4.1.1
 
@@ -105,8 +105,8 @@ main module Lox.java.
 def report(line:int, where:str, message:str):
     global HAD_ERROR
     print(
-        f"[line {line}] Error {where}: {message}",
-        sys.stderr
+        f"Error line {line} {where}: {message}",
+        file=sys.stderr
         )
     HAD_ERROR = True
 

@@ -17,58 +17,10 @@ This work is licensed under a
 
 '''
 from TokenType import * # all the names of lexemes e.g. COMMA, WHILE, etc.
-import Token
+from Token import Token
 from typing import Callable
 
 class Scanner():
-        '''
-        I am defining this read-only dictionary of word:tokentype as a class
-        variable rather than an instance variable, although there is only one
-        scanner instance (I think?).
-        '''
-        keywords = {
-                "and",    AND,
-                "class",  CLASS,
-                "else",   ELSE,
-                "false",  FALSE,
-                "for",    FOR,
-                "fun",    FUN,
-                "if",     IF,
-                "nil",    NIL,
-                "or",     OR,
-                "print",  PRINT,
-                "return", RETURN,
-                "super",  SUPER,
-                "this",   THIS,
-                "true",   TRUE,
-                "var",    VAR,
-                "while",  WHILE
-                }
-
-        '''
-        This lengthy dict is the core of a switch statement used in scanToken().
-        The keys are expected characters. Each value is a lambda returning a TokenType.
-        Only some of the lambdas contain logic, but all must be lambdas so that the
-        result of searching the dict is always an executable. See section 4.5.
-        '''
-        switch_dict = {
-                '(':lambda: LEFT_PAREN,
-                ')':lambda: RIGHT_PAREN,
-                '{':lambda: LEFT_BRACE,
-                '}':lambda: RIGHT_BRACE,
-                ',':lambda: COMMA,
-                '.':lambda: DOT,
-                '-':lambda: MINUS,
-                '+':lambda: PLUS,
-                ';':lambda: SEMICOLON,
-                '*':lambda: STAR,
-                '!':lambda: BANG_EQUAL if self.look_for('=') else BANG,
-                '=':lambda: EQUAL_EQUAL if self.look_for('=') else EQUAL,
-                '<':lambda: LESS_EQUAL if self.look_for('=') else LESS,
-                '>':lambda: GREATER_EQUAL if self.look_for('=') else GREATER,
-                '/':lambda: SLASH if not self.look_for('/') else None
-                }
-
         '''
         The source argument to __init__ is a string of (presumably) Lox code,
         from a single line to a file-full. Also a reference to an error method.
@@ -89,7 +41,47 @@ class Scanner():
                 self.current = 0
                 self.line = 1
                 self.source_len = len(source)
-                isAtEnd = False
+                '''
+                This lengthy dict is the core of a switch statement used in scanToken().
+                The keys are expected characters. Each value is a lambda returning a TokenType.
+                Only some of the lambdas contain logic, but all must be lambdas so that the
+                result of searching the dict is always an executable. See section 4.5.
+                '''
+                self.switch_dict = {
+                        '(':lambda: LEFT_PAREN,
+                        ')':lambda: RIGHT_PAREN,
+                        '{':lambda: LEFT_BRACE,
+                        '}':lambda: RIGHT_BRACE,
+                        ',':lambda: COMMA,
+                        '.':lambda: DOT,
+                        '-':lambda: MINUS,
+                        '+':lambda: PLUS,
+                        ';':lambda: SEMICOLON,
+                        '*':lambda: STAR,
+                        '!':lambda: BANG_EQUAL if self.look_for('=') else BANG,
+                        '=':lambda: EQUAL_EQUAL if self.look_for('=') else EQUAL,
+                        '<':lambda: LESS_EQUAL if self.look_for('=') else LESS,
+                        '>':lambda: GREATER_EQUAL if self.look_for('=') else GREATER,
+                        '/':lambda: SLASH if not self.look_for('/') else None
+                        }
+                self.keywords = {
+                        "and":    AND,
+                        "class":  CLASS,
+                        "else":   ELSE,
+                        "false":  FALSE,
+                        "for":    FOR,
+                        "fun":    FUN,
+                        "if":     IF,
+                        "nil":    NIL,
+                        "or":     OR,
+                        "print":  PRINT,
+                        "return": RETURN,
+                        "super":  SUPER,
+                        "this":   THIS,
+                        "true":   TRUE,
+                        "var":    VAR,
+                        "while":  WHILE
+                        }
 
         '''
         Helper functions for scanning the source string
@@ -136,7 +128,7 @@ class Scanner():
                         self.start = self.current
                         self.scanToken()
                 # append a final EOF token
-                self.tokens.append(Token(EOF, "", map, self.line));
+                self.tokens.append(Token(EOF, "", None, self.line));
                 return self.tokens;
 
         def scanToken(self):
@@ -178,7 +170,7 @@ class Scanner():
                         self.identifier() # create IDENTIFIER token
 
                 else :
-                        self.error_report(self.line, "Unexpected character")
+                        self.error_report(self.line, "Unexpected character", where=self.current)
         def string_lit(self):
                 '''
                 Absorb a "literal" string, adding the contents as a token.
@@ -202,7 +194,7 @@ class Scanner():
                         self.addToken(STRING, literal)
                 else :
                         # the string wasn't terminated
-                        self.error_report(line, "Unterminated string.")
+                        self.error_report(self.line, "Unterminated string", where=self.start+1)
         def number_lit(self):
                 '''
                 Absorb a numeric literal "\d+(\.\d+)?". Book section 4.6.2
@@ -213,11 +205,11 @@ class Scanner():
 
                 First step, bound the literal in source[start:current]
                 '''
-                while self.peek().isdigit() :
+                while self.peek().isdecimal() : # get leading digits
                         self.advance()
-                if self.peek() == '.' and self.peek_next().isDigit() :
-                        advance() # step current over the dot
-                while self.peek().isdigit() :
+                if self.peek() == '.' and self.peek_next().isdecimal() :
+                        self.advance() # step current over the dot
+                while self.peek().isdecimal() : # get trailing digits
                         self.advance()
                 self.addToken(NUMBER,
                               float(self.source[self.start:self.current])
