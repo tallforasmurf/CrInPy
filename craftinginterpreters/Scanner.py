@@ -41,6 +41,7 @@ class Scanner():
                 self.current = 0
                 self.line = 1
                 self.source_len = len(source)
+                self.last_newline = 0
                 '''
                 This lengthy dict is the core of a switch statement used in scanToken().
                 The keys are expected characters. Each value is a lambda returning a TokenType.
@@ -156,6 +157,7 @@ class Scanner():
                                 while not self.isAtEnd() and self.peek() != '\n':
                                         self.advance()
                 elif c == '\n' :
+                        self.last_newline = self.current
                         self.line += 1 # but no token
                 elif c.isspace() : # all Unicode whitespace (\n already done)
                         pass # generate no token; "rider, pass on"
@@ -183,7 +185,12 @@ class Scanner():
                 unterminated string won't be detected until end of file,
                 potentially, or the start of the next string lit, which will
                 lead to a cascade of errors.
+
+                Adding a bit of code to get accurate line/char position of start
+                of an unterminated string.
                 '''
+                start_line = self.line
+                start_pos = self.current - self.last_newline
                 while not self.isAtEnd() and '"' != self.peek() :
                         if self.peek() == '\n' :
                                 self.line += 1
@@ -194,7 +201,7 @@ class Scanner():
                         self.addToken(STRING, literal)
                 else :
                         # the string wasn't terminated
-                        self.error_report(self.line, "Unterminated string", where=self.start+1)
+                        self.error_report(start_line,"Unterminated string",where=start_pos)
         def number_lit(self):
                 '''
                 Absorb a numeric literal "\d+(\.\d+)?". Book section 4.6.2
