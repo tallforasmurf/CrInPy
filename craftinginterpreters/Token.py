@@ -44,6 +44,7 @@ it returns the type, which will just be an int instead of a name like COMMA.
 That's not good. Maybe TokenType should be an Enum after all...
 
 '''
+from TokenType import TokenNames
 
 class Token:
     def __init__(self, type:int, lexeme:str, literal:object, line:int):
@@ -62,4 +63,6 @@ class Token:
     def toString(self):
         return str(self)
     def __str__(self):
-        return f"{self._type} {self._lexeme} {self._line} {self._literal}"
+        return f"{TokenNames[self._type]} {self._lexeme} {self._line} {self._literal}"
+    def __repr__(self):
+        return f"Token({TokenNames[self._type]},{self._lexeme},{self._literal},{self._line})"
