@@ -69,10 +69,10 @@ def run_prompt():
         try:
             line_in = input('> ')
         except EOFError:
-            print("\nthx byeee")
+            print("\nk thx byeee")
             sys.exit()
         except KeyboardInterrupt:
-            print("\n")
+            print()
             sys.exit()
         run_lox(line_in)
         HAD_ERROR = False
