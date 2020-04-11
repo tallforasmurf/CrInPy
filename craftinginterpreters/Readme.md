@@ -5,7 +5,7 @@ This repo contains my version of code found in the book CRAFTING INTERPRETERS by
 
 The book teaches via building an interpreter for a small language Lox, first in Java, then in C. The source for these along with the book are found in Nystrom's repository at https://github.com/munificent/craftinginterpreters
 
-(In fact, I come into this knowing a little something about interpreters. Most recently I've prowled around the internals of CPython and made a Python 3 version of [Byteplay](https://github.com/tallforasmurf/byteplay), a tool for playing with Python's byte-code. Plus, my first real software development experience was helping implement [APL\360](https://en.wikipedia.org/wiki/APL_(programming_language)#APL\360).)
+(In fact, I come into this knowing a little something about interpreters. Most recently I've prowled around the internals of CPython and made a Python 3 version of [Byteplay](https://github.com/tallforasmurf/byteplay), a tool for playing with Python's byte-code. Plus, my first real software development experience was helping implement [APL\360](https://en.wikipedia.org/wiki/APL_(programming_language)#APL\360). Where I expect this book to teach me something new, is in the use of a syntax tree, and more general parsing and compiling, and software design techniques I've never had to use.)
 
 The purpose of this project is to translate the Java code into Python, first as a way to prove I understand the book, and second to have something to do while in CV Quarantine. I'm also finding it a great refresher course in Python.
 
@@ -14,7 +14,7 @@ Direct quotes from Nystrom's work are kept to a minimum, and only used when expl
 My own text and Python code has
 License:<a rel="license" href="http://creativecommons.org/licenses/by-nc/4.0/"><img alt="Creative Commons License" style="border-width:0" src="https://i.creativecommons.org/l/by-nc/4.0/88x31.png" /></a><br />This work is licensed under a <a rel="license" href="http://creativecommons.org/licenses/by-nc/4.0/">Creative Commons Attribution-NonCommercial 4.0 International License</a>.
 
-Java vs Python modules (section 4.1)
+Java vs Python modules (Section 4.1)
 -------------------
 
 The first problem I run into is understanding how the code of Jlox, the Java interpreter, is structured. (I am hampered in this by not knowing Java!) Every module starts with a `package` statement, for example here are parts of the first snippets the reader is to try to work with.
@@ -48,12 +48,12 @@ The package statement tells me that Nystrom's setup has a two-level folder struc
 
 I don't think that's a problem, in fact it's an advantage to have the import dependencies of each module explicit.
 
-Error Handling (section 4.1.1)
+Error Handling (Section 4.1.1)
 -------------------------
 
 Nystrom is using a program global, hadError, set in various places and tested in others. Not sure I like this, but whatever. At least, Python makes the use of a global more obvious, first by the convention of using an all-cap name HAD\_ERROR, second by having to write `global HAD_ERROR` in any function that sets it. Points to Python.
 
-Token Types (section 4.2.1)
+Token Types (Section 4.2.1)
 ---------------------------
 
 A new Java/Python problem arises. The book uses an enum for the 35 or so token types. I started to make that a Python Enum, but the Python Enum is a pitiful thing. It's a class, so any reference to an enumerated value can't be just its name, but the qualified name. So given
@@ -64,7 +64,7 @@ A new Java/Python problem arises. The book uses an enum for the 35 or so token t
 
 the code can't just refer to `LEFT_PAREN`, it has to say `TokenType.LEFT_PAREN` which is just ugly. Explicit, but ugly. (Points to Java/C.) Plus I don't know if the Java enums are effectively ints, and if so, whether at some point the book won't try to compare token types for greater or less. So maybe I should use an IntEnum, but that requires me to specify each int value (the auto() initializer isn't allowed). Bleagh. I'm going to make them globals of the TokenType module initialized to unique ints.
 
-Token (section 4.2.3)
+Token (Section 4.2.3)
 -----------------
 
 This class uses the Java keyword `final`, which I learn means "read-only after initialization". OK, Python has that in the `@property` decorator, so the equivalent of
@@ -98,4 +98,59 @@ In section 4.1.1 Nystrom says,
 So I did that; i.e. I changed Scanner so that besides a string of text it accepts a reference to an error reporting function. In plox.py I pass the `error` reference so Scanner can call it in the two (2) places it reports an error. Also I extended error reporting to include not just a line number but a character position in the line. That required noting the source index of the latest newline seen, so that the offset into that line could be calculated. Trivial extra code.
 
 I changed the error reporting for string literals as well. There's really only one possible error in a string, the absence of a terminator. That won't be found until the scanner has sucked up all the text to EOF. At which point it reports the error as happening on the line number where EOF happened. Which could be a long way from where the orphan opening quote was. So I saved the line number and start position of the opening quote, and when reporting the "unterminated quote" error, give that position, not the EOF position.
+
+Parsing (Section 5.2)
+----------------------
+
+Oh boy, my first real learning moment. He shows this snippet,
+
+```
+abstract class Expr { 
+  static class Binary extends Expr {
+    Binary(Expr left, Token operator, Expr right) {
+      this.left = left;
+      this.operator = operator;
+      this.right = right;
+    }
+    final Expr left;
+    final Token operator;
+    final Expr right;
+  }
+```
+
+Nothing exciting there, since I understand the idea of an abstract base class being subclassed (or in Java terms, extended). But before I start recoding this in Python I want to see the surrounding stuff to get an idea what module it's in, what other pieces there will be etc. That's what I did for the Scanner in the previous section. And here's what I find, lightly edited:
+
+```
+abstract class Expr {
+  interface Visitor<R> {
+    R visitAssignExpr(Assign expr);
+    R visitBinaryExpr(Binary expr);
+    ...and a bunch more like that...
+  }
+  // Nested Expr classes here...
+
+  static class Binary extends Expr {
+    Binary(Expr left, Token operator, Expr right) {
+      this.left = left;
+      this.operator = operator;
+      this.right = right;
+    }
+    @Override
+    <R> R accept(Visitor<R> visitor) {
+      return visitor.visitBinaryExpr(this);
+    }
+```
+
+OK, I have *heard* of the "visitor" pattern but never read code using it. Is this how it is implemented? WTF is that leading `R` and `<R> R` business? Is that some kind of macro substitution thing? And how's it done in Python (too early to ask that since I don't yet know what "it" is)?
+
+So off I go to read about [the Visitor Pattern](https://en.wikipedia.org/wiki/Visitor_pattern), bless you Wikipedia for including a complete Python example! Which starts by importing a module `abc` which I'd never heard of (but yes, it's in the standard set). And ending with a truly arcane formula for Python 3, an abstract implementation of the `accept()` method that is definitely heavily dependent on CPython internals.
+
+Yup, that will be all for today, students. I must go and think on this.
+
+
+
+
+
+
+
 
