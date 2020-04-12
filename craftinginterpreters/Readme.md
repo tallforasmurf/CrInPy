@@ -98,7 +98,7 @@ So I did that; i.e. I changed Scanner so that besides a string of text it accept
 
 I changed the error reporting for string literals as well. There's really only one possible error in a string, the absence of a terminator. That won't be found until the scanner has sucked up all the text to EOF. At which point it reports the error as happening on the line number where EOF happened. Which could be a long way from where the orphan opening quote was. So I saved the line number and start position of the opening quote, and when reporting the "unterminated quote" error, give that position, not the EOF position.
 
-Parsing (Section 5.2)
+Visitor Pattern (Sections 5.2-3)
 ----------------------
 
 Oh boy, my first real learning moment. He shows this snippet,
@@ -140,11 +140,30 @@ abstract class Expr {
     }
 ```
 
-OK, I have *heard* of the "visitor" pattern but never read code using it. Is this how it is implemented? WTF is that leading `R` and `<R> R` business? Is that some kind of macro substitution thing? And how's it done in Python (too early to ask that since I don't yet know what "it" is)?
+OK, I have *heard* of the "visitor" pattern but never read code using it. Is this how it is implemented? WTF is that leading `R` and `<R> R` business? Is that some kind of macro substitution thing? And how's it done in Python? Which I shouldn't ask, since I don't yet know what "it" is.
 
-So off I go to read about [the Visitor Pattern](https://en.wikipedia.org/wiki/Visitor_pattern), bless you Wikipedia for including a complete Python example! Which starts by importing a module `abc` which I'd never heard of (but yes, it's in the standard set). And ending with a truly arcane formula for Python 3, an abstract implementation of the `accept()` method that is definitely heavily dependent on CPython internals.
+So off I go to read about [the Visitor Pattern](https://en.wikipedia.org/wiki/Visitor_pattern), bless you Wikipedia for including a complete Python example! Which starts by importing a module `abc` which I'd never heard of (but yes, it's in the standard lib). And ending with a truly arcane formula for Python 3, an abstract implementation of the `accept()` method that is definitely heavily dependent on CPython internals.
 
 Yup, that will be all for today, students. I must go and think on this.
+
+In the small hours of the night I was pondering this and thought, come on, surely Nystrom is going to explain some of this. Just read ahead. And yes he does; section 5.3 is a detailed backgrounder on the Visitor pattern and why it's useful for our AST. I worked some of this out in the depths of the night. We will have our tree composed of varied subclasses of `Expr`. In several different instances we would want to pass over the tree, visiting every element, to do some related task for each, for example:
+
+* to print the tree, displaying each element
+* to execute the code, performing the action mandated by each
+* to generate code for each element, if we were compiling it
+
+and even, one or more optimization tours, in which we look for elements that can be eliminated or combined. For example, if both arguments to a binary operator are literals, to replace it with the known result. Now *that* case would be a rather intrusive "visitor" because it might not just *visit* a node but *replace* the node. Not sure if the Visitor Pattern covers that. But onward, to read and understand Nystrom's text.
+
+Except for one thing: he doesn't explain the peculiar syntax of the lines like
+
+    R visitBinaryExpr(Binary expr);
+    <R> R accept(Visitor<R> visitor) 
+
+He does say,
+
+> We can’t assume every visitor class wants to produce the same type, so we’ll use generics to let each implementation fill in a return type.
+
+Is that a "generic"? Something else Java-related to read up on.
 
 
 
