@@ -13,16 +13,12 @@ All elements of the collection descend from this class.
 '''
 class CarElement:
     '''
-    It is allowed to have a class variable in an abstract class.
-    '''
-    notImplementedMessage = "You should implement this."
-    '''
     I have yet to learn what benefit comes from the following 2 lines!
     '''
     __metaclass__ = ABCMeta
     @abstractmethod
     def accept(self, visitor):
-        raise NotImplementedError(CarElement.notImplementedMessage)
+        raise NotImplementedError(f"Class {self.__class__.__name__} has not implemented accept()" )
 
 '''
 The following are the various things that can turn up on a Car collection.
@@ -134,3 +130,22 @@ avon = CarElementRunVisitor()
 for element in car.elements:
     element.accept(avon) # avon calling ;-)
 
+'''
+Expected output:
+
+Looking at the car:
+Visiting front left wheel.
+Visiting front right wheel.
+Visiting back left wheel.
+Visiting back right wheel.
+This body is a Wonderland
+Engine looks like vroom, vroom
+Using the car:
+Kicking my front left wheel.
+Kicking my front right wheel.
+Kicking my back left wheel.
+Kicking my back right wheel.
+Opening door to a Wonderland
+The engine goes vroom, vroom
+
+'''
