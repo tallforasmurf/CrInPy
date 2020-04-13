@@ -38,16 +38,16 @@ The argument to `accept()` is an instance of Visitor — any instance, whether a
 
     class Gorilla(Mammal):
         …
-        def accept( visitor:Visitor ):
+        def accept(self, visitor:Visitor):
             return visitor.visitGorilla(self)
 
     class Rodent(Mammal):
         …
-        def accept( visitor:Visitor ):
+        def accept(self, visitor:Visitor ):
             return visitor.visitRodent(self)
  
 
-That’s it. Each subclass calls a method of the visitor that is named uniquely for that subclass (but see note at end), and returns whatever that method returns (see other note at end).
+That’s it. Each subclass, when visited, calls a method of the visitor that is named uniquely for that subclass (but see note at end). It returns whatever that method returns (see other note at end).
 
 Each specific subclass of Visitor must provide a separate method, with an appropriate name, for each subclass that can exist in the collection. The MaximumVisitor has to define a method `visitGorilla()`, a method `visit_Rodent()`, and so forth, for every possible subclass it might visit. And so must the CalculateTaxVisitor, and any other specific visitor. However, this code is confined to that single type of visitor. No changes are required in the collection or any of the collection subclasses, or in any other Visitor type.
 
