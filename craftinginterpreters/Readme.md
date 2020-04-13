@@ -165,6 +165,8 @@ He does say,
 
 Is that a "generic"? Something else Java-related to read up on.
 
+(Next day) I have absorbed the basics of the Visitor Pattern and have written it up for my own pleasure, see visitor\_pattern.md in this repo. Also in that note are comments on the contrasting implementations between Java and Python.
+
 
 
 
