@@ -167,10 +167,36 @@ Is that a "generic"? Something else Java-related to read up on.
 
 (Next day) I have absorbed the basics of the Visitor Pattern and have written it up for my own pleasure, see visitor\_pattern.md in this repo. Also in that note are comments on the contrasting implementations between Java and Python. Then I implemented the code from the wiki article, see visitortest.py.
 
+Generating ASTs(*sic*) (Section 5.2.2)
+------------------------
 
+Nystrom generates the two modules Expr and Stmt automatically, using one-time code `GenerateAst`. It basically defines a little DSL; a table of definitions for the 20-odd subclasses of the abstract classes `Expr` and `Stmt`. I have repeated that work in Python, calling it `make_AST`. (Pedantically speaking, the ASTs are in fact the dynamic tree-structured collections of instances of `Expr` and `Stmt` that are created at runtime, not the classes that compose them. But whatever.)
 
+In making this I ran into a couple of J-to-P issues. First, the two created modules are part of the `craftinginterpreters` Java package. As a result, they can freely invoke each other. Two Python modules can't unless they explicitly import each other. Actually, only `Stmt.py` has to refer to the `Expr` class and one time to its subclass `Expr.Variable`.
 
+To make that happen, I had to insert an ugly hack. I generate the head of each module, including its prolog, its top class definition (`Expr` or `Stmt`) and its few needed imports, from a triple-quoted single string. Because they are the same, except for the master class-name. But thanks to `Stmt` referencing `Expr`, it needs one more `import`. So I have a nasty `if master_class == "Stmt"` to add that line to the common header string.
 
+The Java code has explicit types for all arguments; yay Java. Python's equivalent is the typing module, with exact analogs. For example where the Java code has an argument type of `List<Token> varname`, I could write `varname:List[Token]`. So it was a small matter to edit Nystrom's list of subclass definitions into a Python list with the same effects.
 
+With one exception. Java apparently allows class overloading as well as function overloading, where it picks the subclass to instantiate based on the signature of the initialization call. So Nystrom has two versions of the `Class` statement, one instantiated with, and one without, the superclass name. At least, that's what I infer from these definition lines:
 
+```
+/* Classes class-ast < Inheritance superclass-ast
+      "Class      : Token name, List<Stmt.Function> methods",
+*/
+//> Inheritance superclass-ast
+      "Class      : Token name, Expr.Variable superclass," +
+                  " List<Stmt.Function> methods",
+```
+
+Actually, the simpler one is commented out, and only the longer one appears in `Stmt.java` in the repo. So maybe he introduces the shorter version early and replaces it with the longer? But why then would you add the new parameter in the middle rather than the end of the signature? Whatever; I covered the bases by moving the superclass to the third position and making it optional,
+
+```
+class Class(Stmt):
+	def __init__(self, name:Token,methods:List[Function],superclass:Expr.Variable=None ):
+```
+
+This may come back to bite me later? Maybe. Also, isn't it good that Python syntax is case-sensitive? Because `class` is a reserved word but we can define `class Class` (not to mention `class If` and `class Return`) and all is good.
+
+Anyway, on with learning about ASTs. ASTerisks. ASTers. ASTronomics?
 
