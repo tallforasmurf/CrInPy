@@ -218,3 +218,33 @@ Not gonna do it. I'll proceed on to the parsing chapter, and maybe revisit the p
 Chapter 6
 ===========
 
+Java optional arguments
+-----------------------
+
+An important utility function in the parser is `match()` defined so:
+
+```
+private boolean match(TokenType... types) {
+    for (TokenType type : types) {
+      if (check(type)) {
+        advance();
+        return true;
+      }
+    }
+    return false;
+```
+
+Hello! Multiple arguments. Interesting to me, the syntax puts the ellipsis on the *type*, which I guess says "TokenType and maybe more TokenType" although in English it could mean, "TokenType and maybe Salad or Dessert". Never mind that, how does Python do this? I know it involves an asterisk... time for a review of the docs!
+
+Oh of course, it's star-args, and they can be type-annotated. So the Python equivalent is:
+
+```
+def match(self, *types:TokenType)->bool:
+    for type in types:
+        if (self.check(type)):
+            self.advance()
+            return True
+    return False
+```
+
+Easy, except for the irritation that, because all the Parser machinery is methods of a class, every damn method call has to have `self.` in front of it, and every parameter list starts with `self`.
