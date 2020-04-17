@@ -11,7 +11,7 @@ This work is licensed under a
 
 import sys
 from Scanner import Scanner
-import Token
+import Token, TokenType
 
 # Syntax/parsing error detection flag. See book, sect. 4.1.1
 #   set: report() run_prompt()
@@ -103,7 +103,9 @@ def lex_error(line:int, message:str, where:int=None):
     report(line,  f"chr {where}" if where else "", message)
 
 def parse_error(token:Token.Token, message:str):
-    report(token.line, token.lexeme, message)
+    report(token.line,
+           "at " + token.lexeme if token.type!= TokenType.EOF else "end",
+           message)
 
 '''
 Here recreate the following Java from section 4.1.1
