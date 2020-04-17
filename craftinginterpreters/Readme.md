@@ -13,6 +13,9 @@ Direct quotes from Nystrom's work are kept to a minimum, and only used when expl
 My own text and Python code has
 License:<a rel="license" href="http://creativecommons.org/licenses/by-nc/4.0/"><img alt="Creative Commons License" style="border-width:0" src="https://i.creativecommons.org/l/by-nc/4.0/88x31.png" /></a><br />This work is licensed under a <a rel="license" href="http://creativecommons.org/licenses/by-nc/4.0/">Creative Commons Attribution-NonCommercial 4.0 International License</a>.
 
+Chapter 4
+==========
+
 Java vs Python modules (Section 4.1)
 -------------------
 
@@ -97,6 +100,9 @@ In section 4.1.1 Nystrom says,
 So I did that; i.e. I changed Scanner so that besides a string of text it accepts a reference to an error reporting function. In plox.py I pass the `error` reference so Scanner can call it in the two (2) places it reports an error. Also I extended error reporting to include not just a line number but a character position in the line. That required noting the source index of the latest newline seen, so that the offset into that line could be calculated. Trivial extra code.
 
 I changed the error reporting for string literals as well. There's really only one possible error in a string, the absence of a terminator. That won't be found until the scanner has sucked up all the text to EOF. At which point it reports the error as happening on the line number where EOF happened. Which could be a long way from where the orphan opening quote was. So I saved the line number and start position of the opening quote, and when reporting the "unterminated quote" error, give that position, not the EOF position.
+
+Chapter 5
+===========
 
 Visitor Pattern (Sections 5.2-3)
 ----------------------
@@ -208,3 +214,7 @@ I call foul! In this section, Nystrom writes code to visit a tree and print its 
 In particular, we have not seen the code that takes a list of Token objects, as produced by our scanner in the prior chapter, and parse them and convert them into Expr subclasses. But still he wants us to write code for a PrintVisitor, with no way of testing it, other than to hand-code assembly of a tree.
 
 Not gonna do it. I'll proceed on to the parsing chapter, and maybe revisit the printer problem when I have a tree built.
+
+Chapter 6
+===========
+
