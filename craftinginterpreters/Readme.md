@@ -240,11 +240,49 @@ Oh of course, it's star-args, and they can be type-annotated. So the Python equi
 
 ```
 def match(self, *types:TokenType)->bool:
-    for type in types:
-        if (self.check(type)):
+    for ttype in types:
+        if (self.check(ttype)):
             self.advance()
             return True
     return False
 ```
 
 Easy, except for the irritation that, because all the Parser machinery is methods of a class, every damn method call has to have `self.` in front of it, and every parameter list starts with `self`.
+
+Parser Error Handling (Section 6.3, see also The Scanner above)
+----------------------------------------
+
+With the parser we are getting into more sophisticated error handling than in the scanner, and I am finding Nystrom's methods a bit on the opaque side. First there's the use of Java `throw` as in the `consume` method.
+
+```
+private Token consume(TokenType type, String message) {
+    if (check(type)) return advance();
+    throw error(peek(), message);
+}
+```
+
+Whu? Is that like Python `raise` which definitely initiates a stack unwind to the nearest handler? Apparently not because he says that is going to (somehow?) invoke
+
+```
+private ParseError error(Token token, String message) {
+    Lox.error(token, message);
+    return new ParseError();
+  }
+```
+
+So `throw` is actually a call? The called `error` refers to the error method in the top level module. I already worked around that with the scanner, by passing `Plox.error` when instantiating the Scanner. Well and good, but *this* call to `error` uses a different signature than that one (first arg is a Token not a line#). Java overloading again. So I split that function into two, one for the scanner and one for the parser.
+
+Problem still is, what happens when the `error()` method exits, returning a ParseError. Nystrom says
+
+> The error() method returns it instead of throwing because we want to let the caller decide whether to unwind or not.
+
+But *who is the caller?* If it's `consume()` then it might return a Token (`return advance()`) or it might return a ParseError which is in no way compatible with the Token class. If it isn't `consume()` then where is the code that is supposed to decide what to do? No clue!
+
+Hah! Looking back I see that Nystrom's code never makes use of the return value of `consume()`. Once it sees a left paren it *always* returns a Grouping object. Which must mean, it is relying on that magical `throw` verb to prevent control from every returning from a mismatch to the right paren. But I cannot fathom where he expects execution to continue; and where the returned ParseError instance would ever be of use.
+
+The ParseError class itself is easy enough to translate, it is just
+
+    class ParseError(SyntaxError)
+        pass
+
+Thus a Python Exception derived from one of the standard exceptions. But should it be returned or should it be raised? Time may tell.
