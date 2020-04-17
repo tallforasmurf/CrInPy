@@ -18,7 +18,7 @@ This work is licensed under a
 '''
 from TokenType import * # all the names of lexemes e.g. COMMA, WHILE, etc.
 from Token import Token
-from typing import Callable
+from typing import Callable, List
 
 class Scanner():
         '''
@@ -125,7 +125,7 @@ class Scanner():
                         Token( type, lexeme, literal, self.line )
                         )
 
-        def scanTokens(self):
+        def scanTokens(self)->List[Token]:
                 '''
                 Scan and collect all the tokens from the source input into
                 the list self.tokens. Return self.tokens. This is the only
@@ -158,8 +158,7 @@ class Scanner():
                         else:
                                 # lexeme is //, swallow comment to end of
                                 # line and do not add a token.
-                                while not self.isAtEnd()
-                                and self.peek() != '\n':
+                                while not self.isAtEnd() and self.peek() != '\n':
                                         self.advance()
                 elif c == '\n' :
                         # note position of next line start, increment the
@@ -239,7 +238,7 @@ class Scanner():
 
                 The dict map of keywords to codes is initialized in __init__.
 
-                This while would be a perfect place to use the "walrus"
+                This would be a perfect place to use the "walrus"
                 operator, but I don't have Python 3.8 yet.
                 '''
                 while self.peek().isalnum() or self.peek() == '_' :
