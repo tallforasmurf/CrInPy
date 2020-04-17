@@ -200,3 +200,11 @@ This may come back to bite me later? Maybe. Also, isn't it good that Python synt
 
 Anyway, on with learning about ASTs. ASTerisks. ASTers. ASTronomics?
 
+Not Very Pretty Printer (Section 5.4)
+--------------------------------------
+
+I call foul! In this section, Nystrom writes code to visit a tree and print its contents. But we have not seen any code whatever for *building* a tree. We've seen the classes that will be the nodes of the tree, and we've talked about the Visitor Pattern as a way of processing a tree in various ways *after it's built* -- but we have not seen any code for building one.
+
+In particular, we have not seen the code that takes a list of Token objects, as produced by our scanner in the prior chapter, and parse them and convert them into Expr subclasses. But still he wants us to write code for a PrintVisitor, with no way of testing it, other than to hand-code assembly of a tree.
+
+Not gonna do it. I'll proceed on to the parsing chapter, and maybe revisit the printer problem when I have a tree built.
