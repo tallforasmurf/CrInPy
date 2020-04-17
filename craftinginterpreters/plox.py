@@ -11,6 +11,7 @@ This work is licensed under a
 
 import sys
 from Scanner import Scanner
+import Token
 
 # Syntax/parsing error detection flag. See book, sect. 4.1.1
 #   set: report() run_prompt()
@@ -82,13 +83,28 @@ def run_prompt():
 
 def run_lox(lox_code:str):
     #print('executing:',lox_code)
-    scanner = Scanner(lox_code,error)
+    scanner = Scanner(lox_code,lex_error)
     tokens = scanner.scanTokens()
     for token in tokens:
         print(token)
 
-def error(line:int, message:str, where:int=None):
+'''
+The book provides (at least?) two variations of the function error():
+one in section 4.1.1 for reporting scanner errors, which takes a line number;
+and one in section 6.3.2 for reporting parser errors, which takes a Token.
+Nystrom depends on Java function overloading to work out which to call.
+
+Python not so much. Now it would be possible to write a single Python function
+error whose first argument could be *either* an int or a Token, but that would
+be I think more ugly than what I'm doing, defining two functions.
+'''
+
+def lex_error(line:int, message:str, where:int=None):
     report(line,  f"chr {where}" if where else "", message)
+
+def parse_error(token:Token.Token, message:str):
+    report(token.line, token.lexeme, message)
+
 '''
 Here recreate the following Java from section 4.1.1
 
