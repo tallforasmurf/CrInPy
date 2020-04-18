@@ -286,3 +286,26 @@ The ParseError class itself is easy enough to translate, it is just
         pass
 
 Thus a Python Exception derived from one of the standard exceptions. But should it be returned or should it be raised? Time may tell.
+
+Error handling rant (Section 6.3.2)
+-------------------------------------
+
+Sorry Mr. Nystrom, this section, for the non-Java programmer, is a dog's breakfast. I've just been reading a [tutorial on Java Exceptions](https://docs.oracle.com/javase/tutorial/essential/exceptions/index.html) and it is just very hard to match up what the book is advocating, to what Oracle says is possible or conventional.
+
+An important source of confusion (at least, mine) is the multiple, ambiguous uses of the identifier `error`: as the name of a function in the main Lox module (which turns out to be an overloaded version of *another* function `error`), and as the name of an instance of an exception class, a class that isn't defined until further down the page.
+
+So the parser method `consume()` throws something called `error` which turns out to be an instance of something called `ParseError`, and this class instance contains executable code that calls the `error` in a completely different module using a new signature. But when is that call executed?
+
+From Python I'm quite used to the idea of raising exceptions, where an exception is an instance of a subclass from an heirarchy of exceptions. No problemo. But I am not used to the idea of an *exception instance* containing executable code:
+
+```
+private ParseError error(Token token, String message) {
+    Lox.error(token, message);                           
+    return new ParseError();                             
+  }                                                      
+```
+
+N.B. the Oracle [tutorial on creating exceptions](https://docs.oracle.com/javase/tutorial/essential/exceptions/creating.html) says absolutely nothing about an exception subclass having properties of any kind, let alone code. So, where, in what context, is that call to `Lox.error()` going to be executed? And to what caller is it returning a new instance of itself? And why?
+
+Finally, per the tutorial linked above, a thrown exception needs to be "caught". I think probably the key element that's missing here is: the catcher. Maybe in the next chapter we will find out that `Lox.run()` -- which I assume is where the parsing module will be invoked -- will be the catcher; and that somehow that will resolve some of these confusions. But it is completely opaque at this point.
+
