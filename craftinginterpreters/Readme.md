@@ -307,5 +307,38 @@ private ParseError error(Token token, String message) {
 
 N.B. the Oracle [tutorial on creating exceptions](https://docs.oracle.com/javase/tutorial/essential/exceptions/creating.html) says absolutely nothing about an exception subclass having properties of any kind, let alone code. So, where, in what context, is that call to `Lox.error()` going to be executed? And to what caller is it returning a new instance of itself? And why?
 
-Finally, per the tutorial linked above, a thrown exception needs to be "caught". I think probably the key element that's missing here is: the catcher. Maybe in the next chapter we will find out that `Lox.run()` -- which I assume is where the parsing module will be invoked -- will be the catcher; and that somehow that will resolve some of these confusions. But it is completely opaque at this point.
+Error Handling clarification (Section 6.3.3)
+--------------------------
+
+Ok the above confusions get somewhat straightened out in the final section of the chapter -- by which, of course, I mean (a) he explains something he's been withholding and (b) it gets to look a lot more like Python.
+
+The big problem through all of 6.3.1 and 6.3.2 was it was not at all clear how this code was called, what top-level function could receive ("catch") an exception generated below. That finally gets sorted out; the Parser class gets a method `parse()` in which is --*Hello!* -- a simple `try` statement to begin parsing and handle a generated error.
+
+That removed a lot of the confusion, although there remains the issue of a Java Exception instance having executable code, and also this sentence which still makes absolutely no sense to me:
+
+>  The error() method *returns* it [the exception] instead of *throwing* because we want to let the caller decide whether to unwind or not.
+
+I think the problems I've had here, have pointed out a basic problem with Nystrom's pedagogy. He has worked all this out and coded it; now he is trying to introduce the code in bits as he explains the concepts. But then he has the very awkward problem of trying to introduce thought-out design elements before the context in which they'll sit is clear. It's the major strategy of his book, and here it just led an experienced programmer to all sorts of confusion. Literally you need to read this chapter twice: once quickly to grasp the theory and the structure; then again to see the details, after you understand the context they plug into.
+
+I think he should rewrite the latter half of the chapter; start by introducing the Parser class structure as a whole including the `parse()` method with its `try` block. Then go back and fill in the details of it.
+
+Another issue: he ends the chapter by bringing the Parser class to a runnable state; that's fine. But in order to test it he says, 
+
+> we can hook up our brand new parser to the main Lox class and try it out... for now, we’ll parse to a syntax tree and then use the `AstPrinter` class from the last chapter to display it.
+
+Which means, to do a unit test of this code, I have to implement another module. Hopefully it isn't too complicated. Well that's partly my own fault, because I didn't implement the simple expression printer exercise at the end of the prior chapter. Why? Because in order to test *that* code, I would have had to cobble up some kind of expression-tree-building scaffold for it to print out! Now that I have an expression-tree builder, he says "throw that away" and use the one that you haven't coded yet because it's chapters ahead.
+
+More of the upside-down pedagogy.
+
+Now I'm going to implement `AstPrinter.java`, and run some Parse unit tests.
+
+
+
+
+
+
+
+
+
+
 
