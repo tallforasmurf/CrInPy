@@ -7,24 +7,33 @@ This work is licensed under a
   see http://creativecommons.org/licenses/by-nc/4.0/
 
 '''
-from TokenType import * # all the names of lexemes e.g. COMMA, WHILE, etc.
-from Token import Token
-from typing import Callable, List, Union
-import Expr # refer to subclasses as Expr.Binary, etc.
 
 '''
-The Parser class implements a recursive descent parser, section 6.2.2
+Import the TokenType lexeme names, e.g. COMMA, WHILE, etc..
+This is probably not the last time the choice not to use an Enum for those names
+will byte me: when type-annotating methods that take one of these, I can't write
+blah(self, ttype:TokenType) but have to write blah(self,ttype:int).
+'''
+from TokenType import * # all the names of lexemes
+
+from Token import Token
+from typing import Callable, List, Union, Optional
+import Expr # refer to Expr.Expr, Expr.Binary, etc.
+
+'''
+The Parser class implements a recursive descent parser, section 6.2.2, with
+error handling as sketched in 6.3.3.
 
 Note that as with the Scanner class, I am having the error reporting function
 passed in. This is mainly because Python cross-module references are not as
 convenient as Java inter-package-file references. (But also good practice
 IMHO.) For the challenge of the error functions, see plox.py line 100ff.
 
-It processes a list of Tokens as produced by Scanner.py, converting it
-to a tree of Expressions
+The Parser class code processes a list of Tokens as produced by Scanner.py,
+converting it to a tree of Expressions
 
-TODO: wherefore statements?
-TODO: what is the return type, if any, and from which method?
+TBS: wherefore statements?
+TBS: how is error handling actually done, in Java and in Python?
 
 
 For reference, this is the expression grammar to be parsed:
@@ -57,6 +66,16 @@ class Parser:
         self.error_report = error_report
         # initialize our index to the next Token to eat
         self.current = 0
+
+    '''
+    Initiate parsing of the list of tokens given us at initialization.
+    This is the single input to the Parser (as of 6.3.3).
+    '''
+    def parse(self) -> Optional[Expr.Expr]:
+        try:
+            return self.expression()
+        except ParseError:
+            return None
     '''
     Utility functions for parsing.
     1. peek: current token without advancing
@@ -78,7 +97,7 @@ class Parser:
        n.b. "type" is reserved, well actually not reserved but
        unwise to override it.
     '''
-    def check(self, ttype:TokenType) -> bool :
+    def check(self, ttype:int) -> bool :
         if self.isAtEnd(): return False
         return ttype == self.peek().type()
     '''
@@ -89,10 +108,10 @@ class Parser:
             self.current += 1
         return self.previous()
     '''
-    6. Check current for possible matches. Consume a matched token and return
-    True, or False if none match.
+    6. Check current token against possible matches. Consume a matched token
+    and return True; return False if none match.
     '''
-    def match(self, *types:TokenType)->bool:
+    def match(self, *types:int)->bool:
         for ttype in types:
             if (self.check(ttype)):
                 self.advance()
@@ -101,28 +120,46 @@ class Parser:
     '''
     7. Require a particular token type, consume it if found, if not, report
     an error. At this point the flow of control in the case of an error is
-    very unclear. TBA.
+    very unclear. TBS.
     '''
-    def consume(ttype:TokenType, message:str) -> Token:
+    def consume(ttype:int, message:str) -> Token:
         if self.check(ttype):
             return self.advance()
         self.error(self.peek,message)
     '''
-    8. Actually report an error. Should this
+    8. Actually report an error. THIS NEEDS CLARIFICATION TBS.
+       also see class ParseError above.
     '''
     def error(token:Token, message:str) -> ParseError:
         self.error_report(Token, message)
-        return ParseError(message)
+        raise ParseError(message)
+    '''
+    9. Discard tokens until the next token is a likely statement beginning.
+       Where this is called and when, TBS.
+    '''
+    def synchronize(self):
+        # begin by stepping over the token that caused the parser to choke
+        self.advance()
+        while not self.isAtEnd() :
+            # Stop skipping if we are at end of statement (semicolon)...
+            if self.previous().type() == SEMICOLON:
+                return;
+            # ... or if at a token that starts a new block or statement,
+            if self.peek().type() in (CLASS,FUN,VAR,FOR,IF,WHILE,PRINT,RETURN) :
+                return;
+            # otherwise, keep swallowing...
+            advance();
+
     '''
     Actual parsing! See grammar above.
     1. Process the expression by deferring to equality
     '''
-    def expression(self)->Expr:
+    def expression(self)->Optional[Expr.Expr]:
         return self.equality
     '''
     2. Process the equables: comparable (op comparable)*
     '''
-    def equality(self)->Expr:
+    def equality(self)->Expr.Expr:
         result = self.comparison()
         while self.match(BANG_EQUAL,EQUAL_EQUAL):
             # capture the != or == that successful match stepped over
@@ -133,7 +170,7 @@ class Parser:
     '''
     3. process the comparables: addable (op addable)*
     '''
-    def comparison(self)->Expr:
+    def comparison(self)->Expr.Expr:
         result = self.addition()
         while self.match(GREATER,GREATER_EQUAL,LESS,LESS_EQUAL):
             # capture the one of those, that match stepped over
@@ -144,7 +181,7 @@ class Parser:
     '''
     4. process the multables: multable (op multable)*
     '''
-    def addition(self)->Expr:
+    def addition(self)->Expr.Expr:
         result = self.multiplication()
         while self.match(MINUS,PLUS):
             # capture the -/+ that a successful match stepped over
@@ -155,7 +192,7 @@ class Parser:
     '''
     5. process the unaries: unary (op unary)*
     '''
-    def multiplication(self)->Expr:
+    def multiplication(self)->Expr.Expr:
         result = self.unary()
         while self.match(SLASH,STAR):
             # capture the / or * that a successful match stepped over
@@ -166,7 +203,7 @@ class Parser:
     '''
     6. process the primaries: ([!-]primary)*primary
     '''
-    def unary(self)->Expr:
+    def unary(self)->Expr.Expr:
         if self.match(BANG,MINUS):
             operator = self.previous() # capture the !/-
             rhs = self.unary()
@@ -176,7 +213,7 @@ class Parser:
     7. pick up the pieces: literals and groups.
 
     Note that literal() is a property of the Token type, the getter for the
-    value passed in as the literal parameter when it was made.
+    value passed in as the "literal" parameter when the Token was made.
 
     Note also that this is the basement of the recursive ladder. It only
     returns a value when there is a match to one of the ttypes it checks for.
@@ -191,7 +228,7 @@ class Parser:
     Note 3: here, as also in Scanner.py, I am substituting Python None for
     the Java literal null -- to represent the Lox literal nil.
     '''
-    def primary(self)->Expr:
+    def primary(self)->Expr.Expr:
         if self.match(FALSE): return Expr.Literal(False)
         if self.match(TRUE):  return Expr.Literal(True)
         if self.match(NIL):   return Expr.Literal(None)
@@ -199,17 +236,16 @@ class Parser:
             return Expr.Literal(self.previous().literal)
         '''
         And finally: we must be seeing a left paren, which will contain an
-        expression and must be followed by a right paren.
+        expression and must be followed by a right paren. What happens if it
+        isn't? Hah, then we are into error reporting hell, because the whole
+        error handling situation is a ball of arcane Java-specific TBS.
 
-        What will this code do, one asks, given input of "()". It will
-        receive a token list of [LEFT_PAREN,RIGHT_PAREN]; thus it will call
-        self.expression to process the list RIGHT_PAREN. That will pass
-        through this code like shit through a goose, and return the Python
-        default of None.
+        What will this code do, one asks, given input of "()"? It will
+        receive a token list of [LEFT_PAREN,RIGHT_PAREN,...]; thus it will
+        call self.expression to process the list [RIGHT_PAREN,...]. That will
+        fail the match(LEFT_PAREN) test resulting in an error. So the null
+        grouping is not supported by Lox.
 
-        That will result in Expr.Grouping(None), creating a Grouping instance
-        G in which "G.expression is None". So that is a possibility that any
-        code that processes Groupings will have to handle.
         '''
         if self.match(LEFT_PAREN):
             grouped_expr = self.expression()
@@ -217,3 +253,6 @@ class Parser:
                          "Expected ')' after expression"
                          )
             return Expr.Grouping(grouped_expr)
+
+        # Display the error, raise an exception
+        self.error(self.peek(), "Expected expression after '('")
