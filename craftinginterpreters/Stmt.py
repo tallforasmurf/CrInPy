@@ -12,7 +12,8 @@ from Token import Token
 from typing import List
 
 class Stmt:
-	pass
+	def accept(self,visitor:object):
+		raise NotImplementedError("Forgot something?")
 import Expr
 
 class Block(Stmt):

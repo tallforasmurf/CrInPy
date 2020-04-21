@@ -12,7 +12,8 @@ from Token import Token
 from typing import List
 
 class Expr:
-	pass
+	def accept(self,visitor:object):
+		raise NotImplementedError("Forgot something?")
 
 class Assign(Expr):
 	def __init__(self, name:Token,value:Expr ):
