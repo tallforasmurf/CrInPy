@@ -42,7 +42,8 @@ from Token import Token
 from typing import List
 
 class {master_class}:
-\tpass
+\tdef accept(self,visitor:object):
+\t\traise NotImplementedError("Forgot something?")
 '''
 '''
 The following are templates for the start and end of one subclass in either
