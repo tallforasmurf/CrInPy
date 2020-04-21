@@ -326,11 +326,9 @@ Another issue: he ends the chapter by bringing the Parser class to a runnable st
 
 > we can hook up our brand new parser to the main Lox class and try it out... for now, we’ll parse to a syntax tree and then use the `AstPrinter` class from the last chapter to display it.
 
-Which means, to do a unit test of this code, I have to implement another module. Hopefully it isn't too complicated. Well that's partly my own fault, because I didn't implement the simple expression printer exercise at the end of the prior chapter. Why? Because in order to test *that* code, I would have had to cobble up some kind of expression-tree-building scaffold for it to print out! Now that I have an expression-tree builder, he says "throw that away" and use the one that you haven't coded yet because it's chapters ahead.
+I thought by "last chapter" he meant, the last chapter of the book. There is a module `AstPrinter.java` in the github repo. So I spent several minutes cruising the table of contents to find where it was discussed. Turns out, he meant "prior chapter", the "ugly pretty-printer" exercise that I skipped over.
 
-More of the upside-down pedagogy.
-
-Now I'm going to implement `AstPrinter.java`, and run some Parse unit tests.
+Why did I skip over it? Because at that point, the only way I would have to unit-test that code would have been, to cobble up some kind of expression-tree-building scaffold code. Now I have a nice expression-tree-builder so I better go and implement that exercise. But again, upside-down pedagogy.
 
 
 
