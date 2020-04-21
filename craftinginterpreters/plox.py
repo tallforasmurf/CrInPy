@@ -11,7 +11,11 @@ This work is licensed under a
 
 import sys
 from Scanner import Scanner
-import Token, TokenType
+from Parser import Parser
+from Token import Token
+from TokenType import *
+from Expr import Expr
+from AstPrinter import AstPrinter
 
 # Syntax/parsing error detection flag. See book, sect. 4.1.1
 #   set: report() run_prompt()
@@ -82,11 +86,18 @@ def run_prompt():
 
 
 def run_lox(lox_code:str):
-    #print('executing:',lox_code)
+    print('executing:',lox_code)
     scanner = Scanner(lox_code,lex_error)
     tokens = scanner.scanTokens()
-    for token in tokens:
-        print(token)
+    #for token in tokens:
+        #print(token)
+    parser = Parser(tokens, parse_error)
+    asterix = parser.parse()
+    if not HAD_ERROR:
+        # no error, so asterix is in fact Expr, not None
+        AstPrinter(asterix)
+
+
 
 '''
 The book provides (at least?) two variations of the function error():
@@ -102,9 +113,9 @@ be I think more ugly than what I'm doing, defining two functions.
 def lex_error(line:int, message:str, where:int=None):
     report(line,  f"chr {where}" if where else "", message)
 
-def parse_error(token:Token.Token, message:str):
-    report(token.line,
-           "at " + token.lexeme if token.type!= TokenType.EOF else "end",
+def parse_error(a_token, message:str):
+    report(a_token.line,
+           "at " + (a_token.lexeme if (a_token.type != EOF) else "end"),
            message)
 
 '''
@@ -129,4 +140,5 @@ def report(line:int, where:str, message:str):
     HAD_ERROR = True
 
 if __name__ == '__main__' :
+
     main()

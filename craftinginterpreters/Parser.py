@@ -74,7 +74,7 @@ class Parser:
     def parse(self) -> Optional[Expr.Expr]:
         try:
             return self.expression()
-        except ParseError:
+        except Parser.ParseError:
             return None
     '''
     Utility functions for parsing.
@@ -99,7 +99,7 @@ class Parser:
     '''
     def check(self, ttype:int) -> bool :
         if self.isAtEnd(): return False
-        return ttype == self.peek().type()
+        return ttype == self.peek().type
     '''
     5. advance: return the current token and advance the pointer.
     '''
@@ -119,20 +119,20 @@ class Parser:
         return False
     '''
     7. Require a particular token type, consume it if found, if not, report
-    an error. At this point the flow of control in the case of an error is
-    very unclear. TBS.
+    an error. Currently this is the only method that calls self.error().
     '''
-    def consume(ttype:int, message:str) -> Token:
+    def consume(self, ttype:int, message:str) -> Token:
         if self.check(ttype):
             return self.advance()
-        self.error(self.peek,message)
+        self.error(self.peek(),message)
     '''
-    8. Actually report an error. THIS NEEDS CLARIFICATION TBS.
-       also see class ParseError above.
+    8. Actually report an error. In the book this method RETURNS the exception
+       instead of raising ("throwing") it. Maybe in a later chapter that will
+       be made clear. One hopes.
     '''
-    def error(token:Token, message:str) -> ParseError:
-        self.error_report(Token, message)
-        raise ParseError(message)
+    def error(self, a_token:Token, message:str) -> ParseError:
+        self.error_report(a_token, message)
+        raise Parser.ParseError(message)
     '''
     9. Discard tokens until the next token is a likely statement beginning.
        Where this is called and when, TBS.
@@ -142,10 +142,10 @@ class Parser:
         self.advance()
         while not self.isAtEnd() :
             # Stop skipping if we are at end of statement (semicolon)...
-            if self.previous().type() == SEMICOLON:
+            if self.previous().type == SEMICOLON:
                 return;
             # ... or if at a token that starts a new block or statement,
-            if self.peek().type() in (CLASS,FUN,VAR,FOR,IF,WHILE,PRINT,RETURN) :
+            if self.peek().type in (CLASS,FUN,VAR,FOR,IF,WHILE,PRINT,RETURN) :
                 return;
             # otherwise, keep swallowing...
             advance();
@@ -155,7 +155,7 @@ class Parser:
     1. Process the expression by deferring to equality
     '''
     def expression(self)->Optional[Expr.Expr]:
-        return self.equality
+        return self.equality()
     '''
     2. Process the equables: comparable (op comparable)*
     '''
@@ -207,7 +207,7 @@ class Parser:
         if self.match(BANG,MINUS):
             operator = self.previous() # capture the !/-
             rhs = self.unary()
-            return Expr.Unary(operater, rhs)
+            return Expr.Unary(operator, rhs)
         return self.primary()
     '''
     7. pick up the pieces: literals and groups.
@@ -253,6 +253,9 @@ class Parser:
                          "Expected ')' after expression"
                          )
             return Expr.Grouping(grouped_expr)
+        '''
+        Currently no support for identifiers.
 
-        # Display the error, raise an exception
-        self.error(self.peek(), "Expected expression after '('")
+        Control should never reach here.
+        '''
+        self.error(self.peek(),'Unanticipated input')
