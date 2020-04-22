@@ -13,7 +13,7 @@ interpretation of it.
 import Expr
 import Stmt
 from Token import Token
-from AstVisitorClass import astVisitor
+from ExprVisitorClass import ExprVisitor
 
 class PrintVisitor(astVisitor):
     '''
