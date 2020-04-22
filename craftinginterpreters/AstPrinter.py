@@ -15,7 +15,7 @@ import Stmt
 from Token import Token
 from ExprVisitorClass import ExprVisitor
 
-class PrintVisitor(astVisitor):
+class PrintVisitor(ExprVisitor):
     '''
     Make a string from a list of exprs, within parens. Used for Binary,
     Grouping, Literal, Unary.
