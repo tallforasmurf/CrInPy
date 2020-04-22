@@ -8,7 +8,7 @@ This work is licensed under a
   see http://creativecommons.org/licenses/by-nc/4.0/
 
 '''
-
+import Expr
 class astVisitor:
     # generic astVisitor
     def visitAssign(self, client:Expr.Assign):
