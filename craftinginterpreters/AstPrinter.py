@@ -13,34 +13,7 @@ interpretation of it.
 import Expr
 import Stmt
 from Token import Token
-# import Stmt -- sooner or later
-
-class astVisitor:
-    # generic astVisitor
-    def visitAssign(self, client:Expr.Assign):
-        raise NotImplementedError("No visitor defined for Expr.Assign")
-    def visitBinary(self, client:Expr.Binary):
-        raise NotImplementedError("No visitor defined for Expr.Binary")
-    def visitCall(self, client:Expr.Call):
-        raise NotImplementedError("No visitor defined for Expr.Call")
-    def visitGet(self, client:Expr.Get):
-        raise NotImplementedError("No visitor defined for Expr.Get")
-    def visitGrouping(self, client:Expr.Grouping):
-        raise NotImplementedError("No visitor defined for Expr.Grouping")
-    def visitLiteral(self, client:Expr.Literal):
-        raise NotImplementedError("No visitor defined for Expr.Literal")
-    def visitLogical(self, client:Expr.Logical):
-        raise NotImplementedError("No visitor defined for Expr.Logical")
-    def visitSet(self, client:Expr.Set):
-        raise NotImplementedError("No visitor defined for Expr.Set")
-    def visitSuper(self, client:Expr.Super):
-        raise NotImplementedError("No visitor defined for Expr.Super")
-    def visitThis(self, client:Expr.This):
-        raise NotImplementedError("No visitor defined for Expr.Unary")
-    def visitUnary(self, client:Expr.Unary):
-        raise NotImplementedError("No visitor defined for Expr.Unary")
-    def visitVariable(self, client:Expr.Variable):
-        raise NotImplementedError("No visitor defined for Expr.Variable")
+from AstVisitorClass import astVisitor
 
 class PrintVisitor(astVisitor):
     '''
