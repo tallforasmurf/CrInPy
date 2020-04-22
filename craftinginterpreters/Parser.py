@@ -38,6 +38,7 @@ TBS: how is error handling actually done, in Java and in Python?
 
 For reference, this is the expression grammar to be parsed:
 
+    sequence       → expression ( , expression )*
     expression     → equality ;
     equality       → comparison ( ( "!=" | "==" ) comparison )* ;
     comparison     → addition ( ( ">" | ">=" | "<" | "<=" ) addition )* ;
@@ -73,7 +74,7 @@ class Parser:
     '''
     def parse(self) -> Optional[Expr.Expr]:
         try:
-            return self.expression()
+            return self.sequence()
         except Parser.ParseError:
             return None
     '''
@@ -152,9 +153,22 @@ class Parser:
 
     '''
     Actual parsing! See grammar above.
+    0. Process a sequence of expressions, Challenge 1.
+       My approach is, when comma is present, to make a binary Expr with
+       operator COMMA and the first Expr as lhs, and the second, which
+       may itself turn out to be a COMMA, as the rhs.
+    '''
+    def sequence(self)->Expr.Expr:
+        result = self.expression()
+        while self.match(COMMA):
+            operator = self.previous() # save the COMMA token
+            rhs = self.sequence() # and around we go!
+            result = Expr.Binary(result, operator, rhs)
+        return result
+    '''
     1. Process the expression by deferring to equality
     '''
-    def expression(self)->Optional[Expr.Expr]:
+    def expression(self)->Expr.Expr:
         return self.equality()
     '''
     2. Process the equables: comparable (op comparable)*
