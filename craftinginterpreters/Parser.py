@@ -255,7 +255,18 @@ class Parser:
             return Expr.Grouping(grouped_expr)
         '''
         Currently no support for identifiers.
-
+        '''
+        '''
+        This is where we end up if there is a binary operator without a
+        left argument, e.g. /5 or (!=3). Per challenge 3, detect that.
+        Note that BANG and MINUS have been dealt with in unary() above.
+        If one of those is not followed by a valid rhs, it is the following
+        character that drops through to here.
+        '''
+        bad_token = self.peek()
+        if bad_token.type in (PLUS,SLASH,STAR,EQUAL,GREATER,LESS) :
+            self.error(bad_token,'operator requires a left operand')
+        '''
         Control should never reach here.
         '''
-        self.error(self.peek(),'Unanticipated input')
+        self.error(bad_token,'Unanticipated input')
