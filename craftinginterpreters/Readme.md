@@ -290,11 +290,11 @@ Thus a Python Exception derived from one of the standard exceptions. But should 
 Error handling rant (Section 6.3.2)
 -------------------------------------
 
-Sorry Mr. Nystrom, this section, for the non-Java programmer, is a dog's breakfast. I've just been reading a [tutorial on Java Exceptions](https://docs.oracle.com/javase/tutorial/essential/exceptions/index.html) and it is just very hard to match up what the book is advocating, to what Oracle says is possible or conventional.
+Sorry Mr. Nystrom, this section, for the non-Java programmer, is a puzzler. I've just been reading a [tutorial on Java Exceptions](https://docs.oracle.com/javase/tutorial/essential/exceptions/index.html) and it is just very hard to match up what the book is advocating, to what Oracle says is possible or conventional.
 
 An important source of confusion (at least, mine) is the multiple, ambiguous uses of the identifier `error`: as the name of a function in the main Lox module (which turns out to be an overloaded version of *another* function `error`), and as the name of an instance of an exception class, a class that isn't defined until further down the page.
 
-So the parser method `consume()` throws something called `error` which turns out to be an instance of something called `ParseError`, and this class instance contains executable code that calls the `error` in a completely different module using a new signature. But when is that call executed?
+So the parser method `consume()` throws something called `error` which turns out to be an instance of something called `ParseError`, I'm sort of on board here; but this class instance contains *executable code that calls the `error` in a completely different module using a new signature. But when is that call executed?
 
 From Python I'm quite used to the idea of raising exceptions, where an exception is an instance of a subclass from an heirarchy of exceptions. No problemo. But I am not used to the idea of an *exception instance* containing executable code:
 
@@ -305,12 +305,12 @@ private ParseError error(Token token, String message) {
   }                                                      
 ```
 
-N.B. the Oracle [tutorial on creating exceptions](https://docs.oracle.com/javase/tutorial/essential/exceptions/creating.html) says absolutely nothing about an exception subclass having properties of any kind, let alone code. So, where, in what context, is that call to `Lox.error()` going to be executed? And to what caller is it returning a new instance of itself? And why?
+N.B. the Oracle [tutorial on creating exceptions](https://docs.oracle.com/javase/tutorial/essential/exceptions/creating.html) says  nothing about an exception subclass having properties of *any* kind, let alone code. So, where, in what context, is that call to `Lox.error()` going to be executed? And to what caller is it returning a new instance of itself? And why would it do that?
 
 Error Handling clarification (Section 6.3.3)
 --------------------------
 
-Ok the above confusions get somewhat straightened out in the final section of the chapter -- by which, of course, I mean (a) he explains something he's been withholding and (b) it gets to look a lot more like Python.
+Ok the above confusions get somewhat straightened out in the final section of the chapter, by whichI mean (a) he explains something he's been withholding and (b) it gets to look a lot more like Python.
 
 The big problem through all of 6.3.1 and 6.3.2 was it was not at all clear how this code was called, what top-level function could receive ("catch") an exception generated below. That finally gets sorted out; the Parser class gets a method `parse()` in which is --*Hello!* -- a simple `try` statement to begin parsing and handle a generated error.
 
@@ -318,17 +318,26 @@ That removed a lot of the confusion, although there remains the issue of a Java 
 
 >  The error() method *returns* it [the exception] instead of *throwing* because we want to let the caller decide whether to unwind or not.
 
-I think the problems I've had here, have pointed out a basic problem with Nystrom's pedagogy. He has worked all this out and coded it; now he is trying to introduce the code in bits as he explains the concepts. But then he has the very awkward problem of trying to introduce thought-out design elements before the context in which they'll sit is clear. It's the major strategy of his book, and here it just led an experienced programmer to all sorts of confusion. Literally you need to read this chapter twice: once quickly to grasp the theory and the structure; then again to see the details, after you understand the context they plug into.
+I think the problems I've had here, have pointed out a basic problem with Nystrom's pedagogy. He has worked all this out and coded it; now he is trying to introduce the code in bits as he explains the concepts. But that leads to the very awkward problem of trying to introduce thought-out design elements before the context in which they'll sit is shown. It's the major strategy of his book, and here it just led an experienced programmer to all sorts of confusion. Literally you need to read this chapter twice: once quickly to grasp the theory and the structure; then, after you understand the context they plug into, a second time to see the details.
 
-I think he should rewrite the latter half of the chapter; start by introducing the Parser class structure as a whole including the `parse()` method with its `try` block. Then go back and fill in the details of it.
+I think he should rewrite the latter half of the chapter: Start by introducing the Parser class skeleton including the `parse()` method with its `try` block. Then go back and fill in the details of it.
 
 Another issue: he ends the chapter by bringing the Parser class to a runnable state; that's fine. But in order to test it he says, 
 
 > we can hook up our brand new parser to the main Lox class and try it out... for now, we’ll parse to a syntax tree and then use the `AstPrinter` class from the last chapter to display it.
 
-I thought by "last chapter" he meant, the last chapter of the book. There is a module `AstPrinter.java` in the github repo. So I spent several minutes cruising the table of contents to find where it was discussed. Turns out, he meant "prior chapter", the "ugly pretty-printer" exercise that I skipped over.
+I thought by "last chapter" he meant, the last chapter of the book. There is a module `AstPrinter.java` in the github repo. So I spent several minutes cruising the table of contents to find where it was discussed. Turns out, he meant "prior chapter", the "ugly pretty-printer" exercise that I had skipped over.
 
-Why did I skip over it? Because at that point, the only way I would have to unit-test that code would have been, to cobble up some kind of expression-tree-building scaffold code. Now I have a nice expression-tree-builder so I better go and implement that exercise. But again, upside-down pedagogy.
+Why did I skip over it? Because at that point, the only way I would have to unit-test that code would have been, to cobble up some kind of expression-tree-building scaffold code. Or code a static tree of Expr's in the printer module. Now, a chapter later, I have a nice expression-tree-builder I need to test. Now I need to go and implement that exercise. But again, upside-down pedagogy.
+
+Printer, and Challenges
+------------------------
+
+I did the expression printer, taking pains to follow the nice Visitor pattern, see [AstPrinter.py](https://github.com/tallforasmurf/CrInPy/blob/master/craftinginterpreters/AstPrinter.py). It will be easy to expand it to print other things as we add statements to the AST.
+
+However, the top part of it, the meta-class `astVisitor` is potentially useful for other "visitations" to the AST. Soon I am going to want to pull that out to a separate module, and make the AstPrinter import it. Then I can write other types of visitors importing `astVisitor`.
+
+I also implemented challenge #1, the comma operator; and challenge #3, giving a separate error message for a binop that lacks a left hand value.
 
 
 
