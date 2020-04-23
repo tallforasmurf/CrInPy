@@ -16,6 +16,7 @@ from Token import Token
 from TokenType import *
 from Expr import Expr
 from AstPrinter import AstPrinter
+from Interpreter import Interpreter
 
 # Syntax/parsing error detection flag. See book, sect. 4.1.1
 #   set: report() run_prompt()
@@ -96,8 +97,9 @@ def run_lox(lox_code:str):
     if not HAD_ERROR:
         # no error, so asterix is in fact Expr, not None
         AstPrinter(asterix)
-
-
+        evaluator = Interpreter(parse_error)
+        display = evaluator.interpret(asterix)
+        print(display)
 
 '''
 The book provides (at least?) two variations of the function error():
@@ -108,15 +110,32 @@ Nystrom depends on Java function overloading to work out which to call.
 Python not so much. Now it would be possible to write a single Python function
 error whose first argument could be *either* an int or a Token, but that would
 be I think more ugly than what I'm doing, defining two functions.
+
+lex_error is called from the Scanner with a line number, a message, and an
+optional character position.
 '''
 
 def lex_error(line:int, message:str, where:int=None):
     report(line,  f"chr {where}" if where else "", message)
 
-def parse_error(a_token, message:str):
+'''
+parse_error is called by the Parser with a Token from which both the line number and the operator
+character are extracted, and a message.
+'''
+
+def parse_error(a_token:Token, message:str):
     report(a_token.line,
            "at " + (a_token.lexeme if (a_token.type != EOF) else "end"),
            message)
+
+'''
+interpret_error is called by Interpreter with a Token and a message. Only the
+line number is extracted from the Token. Not the lexeme, hence a different
+function is needed. I don't know why in this case he avoids displaying the
+token.lexeme. I believe I will do so by passing parse_error instead.
+'''
+#def interpret_error(a_token:Token, message:str):
+    #report(a_token.line, a_token.lexeme, message)
 
 '''
 Here recreate the following Java from section 4.1.1
@@ -134,7 +153,7 @@ main module Lox.java.
 def report(line:int, where:str, message:str):
     global HAD_ERROR
     print(
-        f"Error line {line} {where}: {message}",
+        f"Error in line {line} {where}: {message}",
         file=sys.stderr
         )
     HAD_ERROR = True
