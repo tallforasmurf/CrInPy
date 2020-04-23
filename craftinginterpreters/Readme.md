@@ -339,8 +339,18 @@ However, the top part of it, the meta-class `astVisitor` is potentially useful f
 
 I also implemented challenge #1, the comma operator; and challenge #3, giving a separate error message for a binop that lacks a left hand value.
 
+Chapter 7
+===========
 
+I have implemented the Expr interpreter. It went quite easily. I'm onto Nystrom's method now, so when he left obvious loose ends dangling I did not get upset, but just kept reading, waiting for him to weave them in. Which he mostly did.
 
+As usual the most fraught piece of design was error handling. I implemented it much as he suggests, making the considerable adjustments required to bridge from Java's exception handling to Python's. But I did what I should have done during the prior chapter; I read up on [user-defined exceptions](https://docs.python.org/3/tutorial/errors.html#tut-userexceptions) and crafted a specific exception for the Interpreter to use. Then I used `try` to trap all the predictable built-in exceptions (ValueError from float conversion, ZeroDivide) and in the `except` clause, raised the custom exception instead. That's what Nystrom was doing, basically, although it was disguised from me by the Java conventions. (Well, I still don't understand about the executable code, see above.)
+
+An odd thing, though. He has specific error display handlers for the Scanner, the Parser, and now the Interpreter. The Parser handler gets a token and a message; from the token it extracts the line number, the lexeme (e.g. `+`), and displays that, `Error line 2 at +: message`.
+
+His handler for the Interpreter takes the same arguments, but only displays the line number, not the operator. I don't see why it shouldn't, so I just had the Interpreter use the Parser's error display: `Error line 2 at /: division by zero`. Why not?
+
+And as with the Scanner and Parser classes, my top-level code passes the error handler when intantiating the class, rather than having the object try to call back into the calling module by name, which doesn't work well (at all?) with Python namespaces.
 
 
 
