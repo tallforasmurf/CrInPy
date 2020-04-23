@@ -352,6 +352,19 @@ His handler for the Interpreter takes the same arguments, but only displays the 
 
 And as with the Scanner and Parser classes, my top-level code passes the error handler when intantiating the class, rather than having the object try to call back into the calling module by name, which doesn't work well (at all?) with Python namespaces.
 
+"Challenges"
+--------------
+
+Challenge 3 at the end of the chapter is, figure out a way to diagnose division by zero nicely. *Hey*-o! I did that automatically, in the course of handling other errors. I saw that was a possibility and just included it in the process of converting built-in exceptions into the custom exception.
+
+Challenge 1 suggests extending the handling of the overloading of "`+`", which in Lox, if applied to strings, means concatenate. The initial spec required both operands to be of the same type. Challenge 1 asks, how about if *either* operand is a string, make the other into a string, so "scone"+4 -> "scone4". It would be easy to do, but I see a problem.
+
+By that rule, "3"+4 -> "34". I can see equal justification for saying, if either operand is numeric, try to convert the other to numeric, and if you can, do numeric addition, so that "3"+4 -> 7. Wouldn't that be what a naive user might expect? (By the way, Python only allows "`+`"-concatenation for strings; no helpful coercion.)
+
+Thing is, "convert a string operand to numeric if you can" is a trickier thing to do than "convert a numeric operand to string". There's no easy test. For example, `"3.5".isdecimal()` yields False, so that nice test is no use. And, there's `float("4e5")` which works fine. You could ask if a string contained only "`+-.e0123456789`" but that wouldn't tell you if it was syntactically a number. The only simple test is to do `float(thing)` inside a try, which is a
+bore. So no doubt this is the reason that the languages that allow mixed-type concatenation, force to string instead of to number.
+
+Finally, I think that on balance it is a bad idea, in a language described as "simple", to get into the game of coercing types at all. Once you do it in one situation, the user can justifiably call you "inconsistent" if you fail to do it in any other situation.
 
 
 
