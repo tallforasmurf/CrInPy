@@ -84,7 +84,10 @@ class Interpreter(ExprVisitor,StmtVisitor):
         return display
 
     '''
-    Specify what's a truthy Lox value. (Can we get a shout-out to Steven
+    Utility functions
+    -----------------
+
+    U1. Specify what's a truthy Lox value. (Can we get a shout-out to Steven
     Colbert here?) Nystrom specifies Lox to use Ruby's rule, by which only
     false and nil are false -- unlike C and Python, where 0 is also False;
     and unlike Python where a null string or empty collection is False.
@@ -98,16 +101,19 @@ class Interpreter(ExprVisitor,StmtVisitor):
         if isinstance(value,bool): return value
         return True
     '''
-    Specify the meaning of equality in Lox. nil (None) is equal only to itself.
-    Python ensures that None is not equal to anything else including False.
+    U2. Specify the meaning of equality in Lox. nil (None) is equal only to
+    itself. Python ensures that None is not equal to anything including
+    False.
     '''
     def isEqual(self, lhs, rhs)->bool:
         if (lhs is None) and (rhs is None) : return True
         return lhs == rhs
 
     '''
-    E0.                   Expression evaluation!
-        To evaluate any expression is simply to visit it with this class.
+    Expression evaluation!
+    ----------------------
+
+    E0. To evaluate any expression is simply to visit it with this class.
     '''
     def evaluate(self, client:Expr.Expr)->object:
         return client.accept(self)
