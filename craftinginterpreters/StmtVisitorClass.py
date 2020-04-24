@@ -11,21 +11,21 @@ This work is licensed under a
 '''
 import Stmt
 class StmtVisitor:
-    def visitBlockStmt(self, client:Stmt.Block):
+    def visitBlock(self, client:Stmt.Block):
         raise NotImplementedError("No visitor defined for Stmt.Block")
-    def visitClassStmt(self, client:Stmt.Class):
+    def visitClass(self, client:Stmt.Class):
         raise NotImplementedError("No visitor defined for Stmt.Class")
-    def visitExpressionStmt(self, client:Stmt.Expression):
+    def visitExpression(self, client:Stmt.Expression):
         raise NotImplementedError("No visitor defined for Stmt.Expression")
-    def visitFunctionStmt(self, client:Stmt.Function):
+    def visitFunction(self, client:Stmt.Function):
         raise NotImplementedError("No visitor defined for Stmt.Function")
-    def visitIfStmt(self, client:Stmt.If):
+    def visitIf(self, client:Stmt.If):
         raise NotImplementedError("No visitor defined for Stmt.If")
-    def visitPrintStmt(self, client:Stmt.Print):
+    def visitPrint(self, client:Stmt.Print):
         raise NotImplementedError("No visitor defined for Stmt.Print")
-    def visitReturnStmt(self, client:Stmt.Return):
+    def visitReturn(self, client:Stmt.Return):
         raise NotImplementedError("No visitor defined for Stmt.Return")
-    def visitVarStmt(self, client:Stmt.Var):
+    def visitVar(self, client:Stmt.Var):
         raise NotImplementedError("No visitor defined for Stmt.Var")
-    def visitWhileStmt(self, client:Stmt.While):
+    def visitWhile(self, client:Stmt.While):
         raise NotImplementedError("No visitor defined for Stmt.While")
