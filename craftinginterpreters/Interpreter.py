@@ -2,27 +2,30 @@
 
 Evaluate Expression trees.
 
-Refer to book section 7.2 and forward.
+Refer to book section 7.2 and forward, ervised in 8.1 and forward.
+
+The interpreter is implemented as a "visitor" for the tree composed of Stmt
+and Expr objects. As such it has methods that correspond to (eventually) all
+of the methods defined in the StmtVisitor and ExprVisitor classes.
 
 This work is licensed under a
   Creative Commons Attribution-NonCommercial 4.0 International License
   see http://creativecommons.org/licenses/by-nc/4.0/
 
-As of chapter 7, this is called Interpreter, but I suspect in a later
-class it will be more appropriately called Evaluator... TBS
-
 '''
 import Expr
 from ExprVisitorClass import ExprVisitor
+import Stmt
+from StmtVisitorClass import StmtVisitor
 from Token import Token
 from TokenType import *
 from typing import Callable
 
-class Interpreter(ExprVisitor):
+class Interpreter(ExprVisitor,StmtVisitor):
 
     '''
-    Create a switch lambda for the binary ops. Make it a class variable, so
-    it is only initialized once. Used in visitBinary().
+    Create a switch lambda for the binary expression ops. Used in
+    visitBinary(). Make it a class variable, so it is only initialized once.
     '''
     lambdic = {
         PLUS:  lambda x,y: x + y,
@@ -34,6 +37,7 @@ class Interpreter(ExprVisitor):
         LESS:  lambda x,y: x < y,
         LESS_EQUAL: lambda x,y: x <= y
         }
+
     '''
     Define our own exception class which will contain a token, from which
     the line number can be gotten, and a specific message.
@@ -65,15 +69,9 @@ class Interpreter(ExprVisitor):
     think that is appropriate! An interpreter should interpret, and its
     return value should be the value of the interpreted expression. If all it
     does is call system.out.println, how can it be integrated into a larger
-    system where the value of an expression is only one step in the value of
-    a statement or a program?
+    system?
 
     I expect he will correct this later; I'm correcting it now.
-
-    The only exception that should be raised here is our EvaluationError.
-    That is because the only places where a Python built-in exception could
-    be raised, are in try statements that convert it to EvaluationError and
-    re-raise it.
     '''
     def interpret(self, expr:Expr.Expr)->str:
         try:
@@ -84,12 +82,6 @@ class Interpreter(ExprVisitor):
         display = str(result)
         if display.endswith('.0'): display = display[0:-2]
         return display
-
-    '''
-    To evaluate any expression is simply to visit it with this class.
-    '''
-    def evaluate(self, client:Expr.Expr)->object:
-        return client.accept(self)
 
     '''
     Specify what's a truthy Lox value. (Can we get a shout-out to Steven
@@ -112,18 +104,25 @@ class Interpreter(ExprVisitor):
     def isEqual(self, lhs, rhs)->bool:
         if (lhs is None) and (rhs is None) : return True
         return lhs == rhs
+
     '''
-    Evaluate a literal.
+    E0.                   Expression evaluation!
+        To evaluate any expression is simply to visit it with this class.
+    '''
+    def evaluate(self, client:Expr.Expr)->object:
+        return client.accept(self)
+    '''
+    E1. Evaluate a literal.
     '''
     def visitLiteral(self, client:Expr.Literal)->object:
         return client.value
     '''
-    Evaluate a (grouping).
+    E2. Evaluate a (grouping).
     '''
     def visitGrouping(self, client:Expr.Grouping)->object:
         return self.evaluate(client.expression)
     '''
-    Evaluate a Unary expression, -x or !x.
+    E3. Evaluate a Unary expression, -x or !x.
     '''
     def visitUnary(self, client:Expr.Unary)->object:
         rhs = self.evaluate(client.right)
@@ -135,30 +134,30 @@ class Interpreter(ExprVisitor):
         # operator is !, logical not.
         return not self.isTruthy(rhs)
     '''
-    Evaluate a Binary expression. Get the left and right values, then do the
-    thing. A special case is that + is overloaded to be a string
-    concatenator.
+    E4. Evaluate a Binary expression.
+
+    Get the left and right values, then do the thing. A special case is that
+    + is overloaded to be a string concatenator.
 
     Another point worth noting: Lox restricts <,> comparisons to numbers.
 
-    Again as with unary minus, we attempt float conversion which might raise
-    a ValueError exception. Also SLASH could cause a ZeroDivisionError. Convert both
-    to our EvaluationError.
+    As with unary minus, we attempt float conversion which might raise a
+    ValueError exception. Also SLASH could cause a ZeroDivisionError. Convert
+    both to our EvaluationError.
 
     '''
     def visitBinary(self, client:Expr.Binary)->object:
         lhs = self.evaluate(client.left)
         rhs = self.evaluate(client.right)
-        op = client.operator.type # save a few calls
-
+        op = client.operator.type # factor out a few calls
         '''
-        Handle equality comparisons first. Rules of equality in isEqual().
+        Handle equality comparisons first. Rules of equality are defined in
+        isEqual().
         '''
         if op == EQUAL_EQUAL:
             return self.isEqual(lhs,rhs)
         if op == BANG_EQUAL:
             return not self.isEqual(lhs,rhs)
-
         '''
         Handle the overloading of PLUS. The initial Lox spec requires both
         operands to be of the same type. Challenge #1 at end of chapter asks,
@@ -167,24 +166,23 @@ class Interpreter(ExprVisitor):
 
         But by that rule, "3"+4 -> "34". I can see equal justification for
         saying, if either operand is numeric, try to convert the other to
-        numeric and if you can, do numeric addition. Now, "convert to numeric
-        if you can" is a trickier thing to do. For example, "3.5".isdecimal()
-        yields False! And there's "4e5" which is a valid numeric in Python.
-        So the only simple test is to do float(thing) in a try, which is a
-        bore. Generally I don't think it is a good idea, in any language
-        described as "simple", to get into the game of coercing types at all.
+        numeric and do numeric addition. Whichever you do, some user will
+        find you being "inconsistent". Generally I don't think it is a good
+        idea, in a language described as "simple", to get into the game of
+        coercing types at all.
         '''
         if op == PLUS:
             if isinstance(lhs,str) and isinstance(rhs,str):
                 return lhs+rhs
             if type(lhs) != type(rhs) :
                 raise Interpreter.EvaluationError(client.operator,'Both operands must have the same type')
-            # for PLUS, both operands are numbers. Fall through.
+            # at this point we know both operands are numbers. Fall through.
         '''
-        All the remaining operations require numeric values.
+        All the remaining binops require numeric values.
 
-        I *think* the only possible exceptions from simple arithmetic ops are
+        I *think* the only possible exceptions from these arithmetic ops are
         ValueError from float conversion, and ZeroDivisionError from divide.
+        Use the dict of lambdas declared above for quick lookup and execution.
         '''
         if op in Interpreter.lambdic :
             try:
