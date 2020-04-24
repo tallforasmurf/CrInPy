@@ -8,17 +8,11 @@ This work is licensed under a
 
 '''
 
-'''
-Import the TokenType lexeme names, e.g. COMMA, WHILE, etc..
-This is probably not the last time the choice not to use an Enum for those names
-will byte me: when type-annotating methods that take one of these, I can't write
-blah(self, ttype:TokenType) but have to write blah(self,ttype:int).
-'''
 from TokenType import * # all the names of lexemes
-
 from Token import Token
-from typing import Callable, List, Union, Optional
 import Expr # refer to Expr.Expr, Expr.Binary, etc.
+import Stmt # refer to Stmt.Stmt, Stmt.Function, Stmt.Block, etc.
+from typing import Callable, List, Union, Optional
 
 '''
 The Parser class implements a recursive descent parser, section 6.2.2, with
@@ -29,25 +23,7 @@ passed in. This is mainly because Python cross-module references are not as
 convenient as Java inter-package-file references. (But also good practice
 IMHO.) For the challenge of the error functions, see plox.py line 100ff.
 
-The Parser class code processes a list of Tokens as produced by Scanner.py,
-converting it to a tree of Expressions
-
-TBS: wherefore statements?
-TBS: how is error handling actually done, in Java and in Python?
-
-
-For reference, this is the expression grammar to be parsed:
-
-    sequence       → expression ( , expression )*
-    expression     → equality ;
-    equality       → comparison ( ( "!=" | "==" ) comparison )* ;
-    comparison     → addition ( ( ">" | ">=" | "<" | "<=" ) addition )* ;
-    addition       → multiplication ( ( "-" | "+" ) multiplication )* ;
-    multiplication → unary ( ( "/" | "*" ) unary )* ;
-    unary          → ( "!" | "-" ) unary
-                   | primary ;
-    primary        → NUMBER | STRING | "false" | "true" | "nil"
-                   | "(" expression ")" ;
+This version is now modified to handle Statements, see Chapter 8.2ff.
 
 '''
 
@@ -55,11 +31,17 @@ class Parser:
 
     '''
     Define a parser error class based on the standard SyntaxError.
-    See Parser.error()
+    See Parser.error(). Refer to this as Parser.ParseError().
     '''
     class ParseError(SyntaxError):
-        pass
+        def __init__(self,a_token:Token,message:str):
+            self.error_token = a_token
+            self.error_message = message
 
+    '''
+    Initialize a new Parser instance passing a list of tokens as
+    produced by Scanner.py, and an error reporting function.
+    '''
     def __init__(self, tokens:List[Token],error_report:Callable[[Token,str],None]):
         # save the list of tokens
         self.tokens = tokens
@@ -69,47 +51,53 @@ class Parser:
         self.current = 0
 
     '''
-    Initiate parsing of the list of tokens given us at initialization.
-    This is the single input to the Parser (as of 6.3.3).
+    Top level and only external entry to this code: Initiate parsing of the
+    list of tokens given us at initialization.
     '''
-    def parse(self) -> Optional[Expr.Expr]:
+    def parse(self) -> Optional [Stmt.Stmt]:
+        results = [] # List[Stmt.Stmt]
         try:
-            return self.sequence()
+            while not self.isAtEnd():
+                results.append(self.statement() )
         except Parser.ParseError:
-            return None
+            self.error_report(a_token, message)
+            results = None
+        return results # here's the return!
+
     '''
     Utility functions for parsing.
-    1. peek: current token without advancing
+    U1. peek: get current token without advancing
     '''
     def peek(self) -> Token:
         return self.tokens[self.current]
     '''
-    2. previous: last-consumed token; obvs. not to be called before advance()
+    U2. previous: last-consumed token; obvs. not to be called before advance()
     '''
     def previous(self) -> Token:
         return self.tokens[self.current-1]
     '''
-    3. isAtEnd: are we on the final token, which must be an EOF?
+    U3. isAtEnd: are we on the final token, which must be an EOF?
     '''
     def isAtEnd(self) -> bool:
         return EOF == self.peek()
     '''
-    4. check: return truth of current token has a given type.
-       n.b. "type" is reserved, well actually not reserved but
-       unwise to override it.
+    U4. check: return truth of current token has a given type.
+
+    n.b. in Python, "type" is reserved, well actually not reserved but unwise
+    to override it.
     '''
     def check(self, ttype:int) -> bool :
         if self.isAtEnd(): return False
         return ttype == self.peek().type
     '''
-    5. advance: return the current token and advance the pointer.
+    U5. advance: return the current token and advance the pointer.
     '''
     def advance(self) -> Token:
         if not self.isAtEnd() :
             self.current += 1
         return self.previous()
     '''
-    6. Check current token against possible matches. Consume a matched token
+    U6. Check current token against possible matches. Consume a matched token
     and return True; return False if none match.
     '''
     def match(self, *types:int)->bool:
@@ -119,7 +107,7 @@ class Parser:
                 return True
         return False
     '''
-    7. Require a particular token type, consume it if found, if not, report
+    U7. Require a particular token type, consume it if found, if not, report
     an error. Currently this is the only method that calls self.error().
     '''
     def consume(self, ttype:int, message:str) -> Token:
@@ -127,16 +115,15 @@ class Parser:
             return self.advance()
         self.error(self.peek(),message)
     '''
-    8. Actually report an error. In the book this method RETURNS the exception
+    U8. Actually report an error. In the book this method RETURNS the exception
        instead of raising ("throwing") it. Maybe in a later chapter that will
        be made clear. One hopes.
     '''
     def error(self, a_token:Token, message:str) -> ParseError:
-        self.error_report(a_token, message)
-        raise Parser.ParseError(message)
+        raise Parser.ParseError(a_token,message)
     '''
-    9. Discard tokens until the next token is a likely statement beginning.
-       Where this is called and when, TBS.
+    U9. Discard tokens until the next token is a likely statement beginning.
+        Where this is called and when, TBS.
     '''
     def synchronize(self):
         # begin by stepping over the token that caused the parser to choke
@@ -150,10 +137,55 @@ class Parser:
                 return;
             # otherwise, keep swallowing...
             advance();
+    '''
+    Statement parsing! For reference, this is the statement grammar:
+        program           → statement* EOF
+        statement         → expr_statement
+                          | print_statement
+                          # etc TBS
+        expr_statement    → expression ';'
+        print_statement   → "print" expression ';'
+        # etc TBS
+    '''
 
     '''
-    Actual parsing! See grammar above.
-    0. Process a sequence of expressions, Challenge 1.
+    S0. Absorb statements to end of file.
+    '''
+    def statement(self) -> Stmt.Stmt:
+        if self.match(PRINT):
+            return self.print_stmt()
+        # other keywords TBS
+        return self.expr_stmt()
+    '''
+    S1. Print statement.
+    '''
+    def print_stmt()->Stmt.Print:
+        expr = self.expression()
+        self.consume(SEMICOLON, "Expect ';' after value.")
+        return Stmt.Print(expr)
+    '''
+    S2. Expression statement.
+    '''
+    def expr_stmt()->Stmt.Expression:
+        expr = self.expression()
+        self.consume(SEMICOLON, "Expect ';' after value.")
+        return Stmt.Expression(expr)
+
+    '''
+    Expression parsing! For reference, this is the expression grammar to be parsed:
+
+    sequence       → expression ( , expression )*
+    expression     → equality ;
+    equality       → comparison ( ( "!=" | "==" ) comparison )* ;
+    comparison     → addition ( ( ">" | ">=" | "<" | "<=" ) addition )* ;
+    addition       → multiplication ( ( "-" | "+" ) multiplication )* ;
+    multiplication → unary ( ( "/" | "*" ) unary )* ;
+    unary          → ( "!" | "-" ) unary
+                   | primary ;
+    primary        → NUMBER | STRING | "false" | "true" | "nil"
+                   | "(" expression ")" ;
+
+    E0. Process a sequence of expressions, Challenge 1.
        My approach is, when comma is present, to make a binary Expr with
        operator COMMA and the first Expr as lhs, and the second, which
        may itself turn out to be a COMMA, as the rhs.
@@ -166,12 +198,12 @@ class Parser:
             result = Expr.Binary(result, operator, rhs)
         return result
     '''
-    1. Process the expression by deferring to equality
+    E1. Process the expression by deferring to equality
     '''
     def expression(self)->Expr.Expr:
         return self.equality()
     '''
-    2. Process the equables: comparable (op comparable)*
+    E2. Process the equables: comparable (op comparable)*
     '''
     def equality(self)->Expr.Expr:
         result = self.comparison()
@@ -182,7 +214,7 @@ class Parser:
             result =  Expr.Binary(result, operator, rhs)
         return result
     '''
-    3. process the comparables: addable (op addable)*
+    E3. process the comparables: addable (op addable)*
     '''
     def comparison(self)->Expr.Expr:
         result = self.addition()
@@ -193,7 +225,7 @@ class Parser:
             result =  Expr.Binary(result, operator, rhs)
         return result
     '''
-    4. process the multables: multable (op multable)*
+    E4. process the multables: multable (op multable)*
     '''
     def addition(self)->Expr.Expr:
         result = self.multiplication()
@@ -204,7 +236,7 @@ class Parser:
             result =  Expr.Binary(result, operator, rhs)
         return result
     '''
-    5. process the unaries: unary (op unary)*
+    E5. process the unaries: unary (op unary)*
     '''
     def multiplication(self)->Expr.Expr:
         result = self.unary()
@@ -215,7 +247,7 @@ class Parser:
             result =  Expr.Binary(result, operator, rhs)
         return result
     '''
-    6. process the primaries: ([!-]primary)*primary
+    E6. process the primaries: ([!-]primary)*primary
     '''
     def unary(self)->Expr.Expr:
         if self.match(BANG,MINUS):
@@ -224,7 +256,7 @@ class Parser:
             return Expr.Unary(operator, rhs)
         return self.primary()
     '''
-    7. pick up the pieces: literals and groups.
+    E7. pick up the pieces: literals and groups.
 
     Note that literal() is a property of the Token type, the getter for the
     value passed in as the "literal" parameter when the Token was made.
