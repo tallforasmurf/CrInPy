@@ -159,14 +159,14 @@ class Parser:
     '''
     S1. Print statement.
     '''
-    def print_stmt()->Stmt.Print:
+    def print_stmt(self)->Stmt.Print:
         expr = self.expression()
         self.consume(SEMICOLON, "Expect ';' after value.")
         return Stmt.Print(expr)
     '''
     S2. Expression statement.
     '''
-    def expr_stmt()->Stmt.Expression:
+    def expr_stmt(self)->Stmt.Expression:
         expr = self.expression()
         self.consume(SEMICOLON, "Expect ';' after value.")
         return Stmt.Expression(expr)
