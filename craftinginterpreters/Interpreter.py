@@ -19,7 +19,7 @@ import Stmt
 from StmtVisitorClass import StmtVisitor
 from Token import Token
 from TokenType import *
-from typing import Callable
+from typing import Callable, List
 
 class Interpreter(ExprVisitor,StmtVisitor):
 
@@ -112,14 +112,14 @@ class Interpreter(ExprVisitor,StmtVisitor):
     '''
     S1. Execute an expression statement
     '''
-    def visitExpressionStmt(self, client:Stmt.Expression):
+    def visitExpression(self, client:Stmt.Expression):
         self.evaluate(client.expression)
 
     '''
     S2. Execute a print statement
     Note the gimmick of dropping ".0" at the end of integral numbers.
     '''
-    def visitPrintStmt(self, client:Stmt.Print):
+    def visitPrint(self, client:Stmt.Print):
         value = self.evaluate(client.expression)
         str_value = str(value)
         if str_value.endswith('.0') : str_value = str_value[0:-2]
