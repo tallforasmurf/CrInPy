@@ -93,13 +93,13 @@ def run_lox(lox_code:str):
     #for token in tokens:
         #print(token)
     parser = Parser(tokens, parse_error)
-    asterix = parser.parse()
+    # parse() now returns a list of statements, not tokens.
+    program = parser.parse()
     if not HAD_ERROR:
-        # no error, so asterix is in fact Expr, not None
-        AstPrinter(asterix)
-        evaluator = Interpreter(parse_error)
-        display = evaluator.interpret(asterix)
-        print(display)
+        # no error, so program is in fact [Stmt...]
+        interpreter = Interpreter(parse_error)
+        print('executing!...\n')
+        interpreter.interpret(program)
 
 '''
 The book provides (at least?) two variations of the function error():

@@ -62,26 +62,17 @@ class Interpreter(ExprVisitor,StmtVisitor):
         self.error_report = error_report
 
     '''
-    The only entry point is the following, where the syntax tree
-    is delivered. The value of the tree *as a string* is returned.
+    The only entry point is the following, which receives a list of Stmt
+    objects, as produced by Parser.parse. It returns nothing; the value
+    of a Lox program is all in its side-effects, notable its prints.
 
-    Note Nystrom's interpret() method actually prints the value. I don't
-    think that is appropriate! An interpreter should interpret, and its
-    return value should be the value of the interpreted expression. If all it
-    does is call system.out.println, how can it be integrated into a larger
-    system?
-
-    I expect he will correct this later; I'm correcting it now.
     '''
-    def interpret(self, expr:Expr.Expr)->str:
+    def interpret(self, program:List[Stmt.Stmt]):
         try:
-            result = self.evaluate(expr)
+            for a_statement in program:
+                self.execute(a_statement)
         except Interpreter.EvaluationError as EVE:
             self.error_report(EVE.token, EVE.message)
-            result = ''
-        display = str(result)
-        if display.endswith('.0'): display = display[0:-2]
-        return display
 
     '''
     Utility functions
@@ -108,6 +99,31 @@ class Interpreter(ExprVisitor,StmtVisitor):
     def isEqual(self, lhs, rhs)->bool:
         if (lhs is None) and (rhs is None) : return True
         return lhs == rhs
+
+    '''
+    Statement execution!
+    --------------------
+
+    S0. To execute a statement is to visit it with this class.
+    '''
+    def execute(self, a_statement:Stmt.Stmt):
+        a_statement.accept(self)
+
+    '''
+    S1. Execute an expression statement
+    '''
+    def visitExpressionStmt(self, client:Stmt.Expression):
+        self.evaluate(client.expression)
+
+    '''
+    S2. Execute a print statement
+    Note the gimmick of dropping ".0" at the end of integral numbers.
+    '''
+    def visitPrintStmt(self, client:Stmt.Print):
+        value = self.evaluate(client.expression)
+        str_value = str(value)
+        if str_value.endswith('.0') : str_value = str_value[0:-2]
+        print(str_value)
 
     '''
     Expression evaluation!
