@@ -160,8 +160,19 @@ class Interpreter(ExprVisitor):
             return not self.isEqual(lhs,rhs)
 
         '''
-        Handle the overloading of PLUS. It requires both operands
-        to be the same type.
+        Handle the overloading of PLUS. The initial Lox spec requires both
+        operands to be of the same type. Challenge #1 at end of chapter asks,
+        how about if either operand is a string, make both strings, so
+        "scone"+4 -> "scone4".
+
+        But by that rule, "3"+4 -> "34". I can see equal justification for
+        saying, if either operand is numeric, try to convert the other to
+        numeric and if you can, do numeric addition. Now, "convert to numeric
+        if you can" is a trickier thing to do. For example, "3.5".isdecimal()
+        yields False! And there's "4e5" which is a valid numeric in Python.
+        So the only simple test is to do float(thing) in a try, which is a
+        bore. Generally I don't think it is a good idea, in any language
+        described as "simple", to get into the game of coercing types at all.
         '''
         if op == PLUS:
             if isinstance(lhs,str) and isinstance(rhs,str):
@@ -181,6 +192,8 @@ class Interpreter(ExprVisitor):
             except ValueError:
                 raise Interpreter.EvaluationError(client.operator,'Numeric operands required')
             except ZeroDivisionError:
+                # note it turns out that this, which I did almost automatically,
+                # is actually "challenge #3" in the chapter.
                 raise Interpreter.EvaluationError(client.operator,'Cannot divide by zero')
 
         raise NotImplementedError # because I done screwed up sumpin.
