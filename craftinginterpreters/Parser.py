@@ -59,8 +59,8 @@ class Parser:
         try:
             while not self.isAtEnd():
                 results.append(self.statement() )
-        except Parser.ParseError:
-            self.error_report(a_token, message)
+        except Parser.ParseError as PEX:
+            self.error_report(PEX.error_token, PEX.error_message)
             results = None
         return results # here's the return!
 
@@ -79,7 +79,7 @@ class Parser:
     U3. isAtEnd: are we on the final token, which must be an EOF?
     '''
     def isAtEnd(self) -> bool:
-        return EOF == self.peek()
+        return EOF == self.peek().type
     '''
     U4. check: return truth of current token has a given type.
 
