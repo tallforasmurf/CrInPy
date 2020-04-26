@@ -366,9 +366,43 @@ bore. So no doubt this is the reason that the languages that allow mixed-type co
 
 Finally, I think that on balance it is a bad idea, in a language described as "simple", to get into the game of coercing types at all. Once you do it in one situation, the user can justifiably call you "inconsistent" if you fail to do it in any other situation.
 
+Chapter 8
+============
 
+Working through this chapter I add the parsing and interpreting code for var and print statements, and for executing expression statements and print statements.
 
+Nystrom shows how to interpret an expression statement, but omits to mention that the expression statement, since its execution returns no value, is only useful when it has side-effects, e.g. 
 
+    2+7*3
+
+is useless, but
+
+    some_fun(2+7*3)
+
+will presumably change the state of the program somehow. 
+
+Section 8.3
+------------
+
+Now we are defining the "Environment", what in more primitive days on APL (that's a pun, but nobody is going to get it) we called the "symbol table". Anyway, I perhaps foolishly run ahead of the text and read the Environment.java module and [implement it in full](https://github.com/tallforasmurf/CrInPy/blob/master/craftinginterpreters/Environment.py). I feel clever, because where Nystrom has a class that *contains* a Java hash map, I make my Environment a sub-class of dict so it *is* a hash-map.
+
+I feel even cleverer later. The Environment is designed to support nested syntactic scopes, so there will be (typically) a local Environment that is logically enclosed by a global Environment. Or possibly multiple levels? We'll no doubt see later on in the book. Anyway, each instance of Environment has a member `enclosing` which points to a more global Environment. The Java code has a method, `ancestor()` which returns its *n*th outer enclosure, like so:
+
+```
+  Environment ancestor(int distance) {
+    Environment environment = this;
+    for (int i = 0; i < distance; i++) {
+      environment = environment.enclosing;
+```
+
+And I code up a very similar piece of Python, then I realize this is just begging for a nice obscure recursive one-liner:
+
+```
+    def ancestor(distance):
+        return self.enclosing.ancestor(distance-1) if distance>0 else self
+```
+
+But I didn't actually code it that way.
 
 
 
