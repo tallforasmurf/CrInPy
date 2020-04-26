@@ -51,6 +51,10 @@ class Parser:
         self.current = 0
 
     '''
+    Initialize a tuple of the declaration keywords, see statement()
+    '''
+    declarators = (CLASS,ELSE,FUN,FOR,IF,VAR,WHILE)
+    '''
     Top level and only external entry to this code: Initiate parsing of the
     list of tokens given us at initialization.
     '''
@@ -58,7 +62,7 @@ class Parser:
         results = [] # List[Stmt.Stmt]
         try:
             while not self.isAtEnd():
-                results.append(self.statement() )
+                results.append(self.declaration() )
         except Parser.ParseError as PEX:
             self.error_report(PEX.error_token, PEX.error_message)
             results = None
@@ -138,8 +142,17 @@ class Parser:
             # otherwise, keep swallowing...
             advance();
     '''
-    Statement parsing! For reference, this is the statement grammar:
-        program           → statement* EOF
+    Statement parsing! For reference, this is the statement grammar as of
+    Chapter 8.2.1:
+
+        program           → declaration* EOF
+
+        declaration       → var_declare
+                          | statement
+                          # etc TBS
+
+        var_declare       → 'var' IDENTIFIER (= expression)? ';'
+
         statement         → expr_statement
                           | print_statement
                           # etc TBS
@@ -147,24 +160,51 @@ class Parser:
         print_statement   → "print" expression ';'
         # etc TBS
     '''
-
     '''
-    S0. Absorb statements to end of file.
+    S0. Top of the grammar: Declaration statements.
+    '''
+    def declaration(self) -> Stmt.Stmt:
+        try:
+            if not self.peek().type in Parser.declarators:
+                # it isn't VAR etc, so get normal statement
+                return self.statement()
+            if self.match(VAR):
+                return self.var_stmt()
+            # other declaration keywords TBS
+            raise NotImplementedError
+        except Parser.ParseError as PEX:
+            self.error_report(PEX.error_token, PEX.error_message)
+            self.synchronize()
+            return None
+    '''
+    SS0. Absorb one ordinary statement through ';' .
     '''
     def statement(self) -> Stmt.Stmt:
         if self.match(PRINT):
             return self.print_stmt()
-        # other keywords TBS
+        # other statement keywords TBS
+        # None of the above, assume expression statement
         return self.expr_stmt()
     '''
-    S1. Print statement.
+    SD1. Var statement
+    '''
+    def var_stmt(self) -> Stmt.Stmt:
+        name = self.consume(IDENTIFIER, "Expect variable name.")
+        initializer = None
+        if self.match(EQUAL):
+            initializer = self.expression()
+        self.consume(SEMICOLON, "Expect ';' after variable declaration.")
+        return Stmt.Var(name, initializer)
+
+    '''
+    SS1. Print statement.
     '''
     def print_stmt(self)->Stmt.Print:
         expr = self.expression()
         self.consume(SEMICOLON, "Expect ';' after value.")
         return Stmt.Print(expr)
     '''
-    S2. Expression statement.
+    SS2. Expression statement.
     '''
     def expr_stmt(self)->Stmt.Expression:
         expr = self.expression()
@@ -182,7 +222,7 @@ class Parser:
     multiplication → unary ( ( "/" | "*" ) unary )* ;
     unary          → ( "!" | "-" ) unary
                    | primary ;
-    primary        → NUMBER | STRING | "false" | "true" | "nil"
+    primary        → NUMBER | STRING | IDENTIFIER | "false" | "true" | "nil"
                    | "(" expression ")" ;
 
     E0. Process a sequence of expressions, Challenge 1.
@@ -225,7 +265,7 @@ class Parser:
             result =  Expr.Binary(result, operator, rhs)
         return result
     '''
-    E4. process the multables: multable (op multable)*
+    E4. process the multables: multable (+/- multable)*
     '''
     def addition(self)->Expr.Expr:
         result = self.multiplication()
@@ -236,7 +276,7 @@ class Parser:
             result =  Expr.Binary(result, operator, rhs)
         return result
     '''
-    E5. process the unaries: unary (op unary)*
+    E5. process the unaries: unary (*// unary)*
     '''
     def multiplication(self)->Expr.Expr:
         result = self.unary()
@@ -247,7 +287,7 @@ class Parser:
             result =  Expr.Binary(result, operator, rhs)
         return result
     '''
-    E6. process the primaries: ([!-]primary)*primary
+    E6. process the primaries: [!-]primary
     '''
     def unary(self)->Expr.Expr:
         if self.match(BANG,MINUS):
@@ -258,15 +298,6 @@ class Parser:
     '''
     E7. pick up the pieces: literals and groups.
 
-    Note that literal() is a property of the Token type, the getter for the
-    value passed in as the "literal" parameter when the Token was made.
-
-    Note also that this is the basement of the recursive ladder. It only
-    returns a value when there is a match to one of the ttypes it checks for.
-    Ergo all possible Expression token types must be checked-for here, or
-    above here. A token type not mentioned will simply be ignored,
-    self.current will not advance.
-
     Those possibilities include: LEFT_BRACE, FUN, RETURN and etc. Presumably
     such token types will be dealt with at a higher level, as part of parsing
     statements.
@@ -275,44 +306,55 @@ class Parser:
     the Java literal null -- to represent the Lox literal nil.
     '''
     def primary(self)->Expr.Expr:
+        if self.match(IDENTIFIER):
+            # IDENTIFIER token contains a word, make it into an Expr
+            return Expr.Variable(self.previous())
+        # handle the keyword values
         if self.match(FALSE): return Expr.Literal(False)
         if self.match(TRUE):  return Expr.Literal(True)
         if self.match(NIL):   return Expr.Literal(None)
+        # handle literal values
         if self.match(NUMBER,STRING):
             return Expr.Literal(self.previous().literal)
         '''
-        And finally: we must be seeing a left paren, which will contain an
-        expression and must be followed by a right paren. What happens if it
-        isn't? Hah, then we are into error reporting hell, because the whole
-        error handling situation is a ball of arcane Java-specific TBS.
+        The only remaining legitimate option is a left paren, which will
+        contain an expression and must be followed by a right paren.
 
-        What will this code do, one asks, given input of "()"? It will
-        receive a token list of [LEFT_PAREN,RIGHT_PAREN,...]; thus it will
-        call self.expression to process the list [RIGHT_PAREN,...]. That will
-        fail the match(LEFT_PAREN) test resulting in an error. So the null
-        grouping is not supported by Lox.
+        What would this code do, one asks, given input of "()"? As Nystrom
+        wrote it (through Chapter 8, maybe it gets improved later?) it will
+        look at the token list of [LEFT_PAREN,RIGHT_PAREN,...]; it will call
+        self.expression to process the list [RIGHT_PAREN,...], and will fall
+        through to be an error below. Thus Lox doesn't support the null
+        expression.
+
+        I am changing this to recognize "()" and return "(nil)".
 
         '''
         if self.match(LEFT_PAREN):
-            grouped_expr = self.expression()
+            if self.peek().type == RIGHT_PAREN:
+                grouped_expr = Expr.Literal(None)
+            else:
+                grouped_expr = self.expression()
             self.consume(RIGHT_PAREN,
                          "Expected ')' after expression"
                          )
             return Expr.Grouping(grouped_expr)
         '''
-        Currently no support for identifiers.
-        '''
-        '''
-        This is where we end up if there is a binary operator without a
-        left argument, e.g. /5 or (!=3). Per challenge 3, detect that.
-        Note that BANG and MINUS have been dealt with in unary() above.
-        If one of those is not followed by a valid rhs, it is the following
-        character that drops through to here.
+        This is the basement of the recursive ladder. It only returns a value
+        when there is a match to one of the ttypes it checks for. Ergo all
+        possible Expression token types must be checked-for here, or above
+        here. A token type not explicitly checked-for ends up at this error.
+
+        This is also where we end up, if there is a binary operator without a
+        left argument, e.g. /5 or (!=3). Per challenge 3, detect that. Note
+        that BANG and MINUS have been dealt with in unary() above. If one of
+        those is not followed by a valid rhs, it is the following character
+        that drops through to here.
         '''
         bad_token = self.peek()
         if bad_token.type in (PLUS,SLASH,STAR,EQUAL,GREATER,LESS) :
             self.error(bad_token,'operator requires a left operand')
         '''
-        Control should never reach here.
+        Finally we just don't know what's going on.
         '''
         self.error(bad_token,'Unanticipated input')
