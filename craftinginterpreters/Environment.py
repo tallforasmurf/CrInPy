@@ -105,6 +105,10 @@ class Environment(dict):
         def ancestor(distance):
             return self.enclosing.ancestor(distance-1) if distance>0 else self
 
+    Coding note: this method returns the self-class Environment. Prior to
+    Python 3.7 that was not possible as that name has not been defined until
+    this class definition is closed. "from __future__ import annotations"
+    fixes this, and in 3.9 it will be fixed permanently.
     '''
     def ancestor(distance:int)->Environment:
         env = self
