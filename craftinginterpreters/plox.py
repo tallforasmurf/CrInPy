@@ -68,9 +68,11 @@ def run_prompt():
 
     Pass each line to run_lox for execution. After running the line, clear
     the global HAD_ERROR.
-    '''
-    #print('prompting for code now')
 
+    Must make the Interpreter instance here, so as to preserve its Environment
+    across separate calls.
+    '''
+    interactive_interpreter = Interpreter(parse_error)
     while True:
         try:
             line_in = input('> ')
@@ -80,26 +82,26 @@ def run_prompt():
         except KeyboardInterrupt:
             print()
             sys.exit()
-        run_lox(line_in)
+        run_lox(line_in,interactive_interpreter)
         HAD_ERROR = False
 
     # end while
 
 
-def run_lox(lox_code:str):
-    print('executing:',lox_code)
+def run_lox(lox_code:str, interpreter=None):
+    # tokenize the input string.
     scanner = Scanner(lox_code,lex_error)
     tokens = scanner.scanTokens()
-    #for token in tokens:
-        #print(token)
+    if HAD_ERROR: return
+    # parse the tokens.
     parser = Parser(tokens, parse_error)
-    # parse() now returns a list of statements, not tokens.
     program = parser.parse()
-    if not HAD_ERROR:
-        # no error, so program is in fact [Stmt...]
-        interpreter = Interpreter(parse_error)
-        print('executing!...\n')
-        interpreter.interpret(program)
+    if HAD_ERROR: return
+    # no error, so program is in fact [Stmt...]
+    # make an interpreter if we need one
+    if interpreter is None: interpreter = Interpreter(parse_error)
+    #print('executing!...\n')
+    interpreter.interpret(program)
 
 '''
 The book provides (at least?) two variations of the function error():
