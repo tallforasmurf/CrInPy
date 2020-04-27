@@ -43,12 +43,14 @@ That can't be what this toString is returning, but then what? The Environment is
 not given an identifier it could be displaying...
 
 '''
+from __future__ import annotations # allow forward-reference to this class
 
 from Token import Token
+from typing import Optional
 
-class Environment(dict, enclosing=None:Environment):
-    def __init__(self):
-        self.enclosing = enclosing # None if we are the global dict
+class Environment(dict):
+    def __init__(self, enclosing=None):
+        self.enclosing = enclosing # Optional[Environment]
 
     '''
     Return the value of a name, if it exists at this or an enclosing scope,
@@ -59,8 +61,9 @@ class Environment(dict, enclosing=None:Environment):
             return self.__getitem__(name.lexeme)
         if self.enclosing : # is not None,
             return self.enclosing.get(name)
-        # we are the global scope and we don't have it
-        raise NameError(f"Undefined variable: {name.lexeme}")
+        # we are the global scope and we don't have this name.
+        # Put the name string in the "args" of the NameError exception.
+        raise NameError(name.lexeme)
 
     '''
     Assign a value (any object) to a name, if the name is defined in this or
