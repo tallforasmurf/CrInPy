@@ -402,7 +402,49 @@ And I code up a very similar piece of Python, then I realize this is just beggin
         return self.enclosing.ancestor(distance-1) if distance>0 else self
 ```
 
-But I didn't actually code it that way.
+But I didn't actually code it that way; just too tricksy.
+
+Section 8.4
+-------------
+
+So implementing assignment didn't present any surprises. Especially because I had already prepared the complete Environment class, working from the Java code. Otherwise I'd have had to add its `assign()` method in the middle of implementing the Interpreter code to execute assignment.
+
+I made a change to flatten his version of the assignment parsing code. This is his:
+
+```
+    private Expr assignment() {                                   
+    Expr expr = equality()
+    if (match(EQUAL)) {                                         
+      Token equals = previous();                                
+      Expr value = assignment();                                
+      if (expr instanceof Expr.Variable) {                      
+        Token name = ((Expr.Variable)expr).name;                
+        return new Expr.Assign(name, value);                    
+      }                                                         
+      error(equals, "Invalid assignment target."); 
+    }                                                           
+    return expr;                                                
+    }                                                             
+```
+
+I don't see any reason not to pick off the "invalid target" error first, and thus flatten the logic. This reads more easily to me for two reasons: One, there's no nesting of blocks to keep track of, it's just linear execution; and Two, that linearity makes it possible to comment it in "literate" style.
+
+```
+def assignment(self)->Expr.Expr:
+    # Suck up what might be an assignment target, or might be an expression.
+    possible_lhs = self.equality()
+    # If the next token is not "=", we are done, with an expression.
+    if not self.match(EQUAL):
+        return possible_lhs
+    # Now ask, We have "something =", but is it "variable ="?
+    if not isinstance(possible_lhs, Expr.Variable):
+        # flag an error at the "=" token, which is previous
+        self.error(self.previous(), "Invalid target for assignment")
+    # We have variable = something, collect the r-value.
+    # Notice the recursion? We take a = b = c as a = (b = c).
+    rhs = self.assignment()
+    return Expr.Assign(possible_lhs.name, rhs)
+```
 
 
 
