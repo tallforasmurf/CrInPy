@@ -140,7 +140,7 @@ class Parser:
             if self.peek().type in (CLASS,FUN,VAR,FOR,IF,WHILE,PRINT,RETURN) :
                 return;
             # otherwise, keep swallowing...
-            advance();
+            self.advance();
     '''
     Statement parsing! For reference, this is the statement grammar as of
     Chapter 8.2.1:
