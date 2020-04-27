@@ -149,9 +149,6 @@ class Interpreter(ExprVisitor,StmtVisitor):
         if client.initializer: # is not None,
             value = self.evaluate(client.initializer)
         self.environment.define( client.name.lexeme, value )
-    '''
-    S4. Asignment statement.
-    '''
 
     '''
     Expression evaluation!
@@ -184,7 +181,19 @@ class Interpreter(ExprVisitor,StmtVisitor):
             # for the message, extract the string alone.
             raise Interpreter.EvaluationError(client.name,f"Undefined name {NE.args[0]}")
     '''
-    E4. Evaluate a Unary expression, -x or !x.
+    E4. Evaluate an assignment expression, foo=bar. Like the above, this can
+        raise NameError.
+    '''
+    def visitAssign(self, client:Expr.Assign)->object:
+        value = self.evaluate(client.value)
+        try:
+            self.environment.assign(client.name,value)
+            return value
+        except NameError as NE:
+            raise Interpreter.EvaluationError(client.name,f"Undefined name {NE.args[0]}")
+
+    '''
+    E5. Evaluate a Unary expression, -x or !x.
     '''
     def visitUnary(self, client:Expr.Unary)->object:
         rhs = self.evaluate(client.right)
