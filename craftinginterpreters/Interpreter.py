@@ -19,6 +19,7 @@ import Stmt
 from StmtVisitorClass import StmtVisitor
 from Token import Token
 from TokenType import *
+from Environment import Environment
 from typing import Callable, List
 
 class Interpreter(ExprVisitor,StmtVisitor):
@@ -60,6 +61,14 @@ class Interpreter(ExprVisitor,StmtVisitor):
     '''
     def __init__(self, error_report:Callable[[int,str],None]):
         self.error_report = error_report
+        '''
+        Create the global environment for this run. Personally I don't like
+        calling it "environment". It's wordy and repetitive and also
+        confusing given the number of "[eE]nvironments" we have. I'd prefer
+        "globals" since that's what this level is. But I have to use it or else
+        I'll be mentally translating Nystrom's code all the time.
+        '''
+        self.environment = Environment() # no ancestor, hence, global
 
     '''
     The only entry point is the following, which receives a list of Stmt
@@ -105,12 +114,20 @@ class Interpreter(ExprVisitor,StmtVisitor):
     --------------------
 
     S0. To execute a statement is to visit it with this class.
+
+    Note in 8.1.3 Nystrom makes the point that "Unlike expressions,
+    statements produce no values, so the return type of the visit methods is
+    Void, not Object." And all his visitXxx methods have an explicit "return
+    null". In Python, the default for any method that doesn't execute
+    "return" is to return None. So I am not reproducing those "return null"s
     '''
     def execute(self, a_statement:Stmt.Stmt):
         a_statement.accept(self)
 
     '''
-    S1. Execute an expression statement
+    S1. Execute an expression statement. An expression STATEMENT does not
+    return a value. Hence to be useful it must have a side-effect, e.g. a
+    function call.
     '''
     def visitExpression(self, client:Stmt.Expression):
         self.evaluate(client.expression)
@@ -124,6 +141,17 @@ class Interpreter(ExprVisitor,StmtVisitor):
         str_value = str(value)
         if str_value.endswith('.0') : str_value = str_value[0:-2]
         print(str_value)
+    '''
+    S3. Var statement.
+    '''
+    def visitVar(self, client:Stmt.Var):
+        value = None
+        if client.initializer: # is not None,
+            value = self.evaluate(client.initializer)
+        self.environment.define( client.name.lexeme, value )
+    '''
+    S4. Asignment statement.
+    '''
 
     '''
     Expression evaluation!
@@ -144,7 +172,19 @@ class Interpreter(ExprVisitor,StmtVisitor):
     def visitGrouping(self, client:Expr.Grouping)->object:
         return self.evaluate(client.expression)
     '''
-    E3. Evaluate a Unary expression, -x or !x.
+    E3. Evaluate a variable reference: fetch its value from the
+        global environment. If it isn't there, convert the NameError
+        from Environment, into our EvaluationError.
+    '''
+    def visitVariable(self, client:Expr.Variable)->object:
+        try:
+            return self.environment.get(client.name)
+        except NameError as NE:
+            # the value in BaseException.args is a tuple, (namestring,None)
+            # for the message, extract the string alone.
+            raise Interpreter.EvaluationError(client.name,f"Undefined name {NE.args[0]}")
+    '''
+    E4. Evaluate a Unary expression, -x or !x.
     '''
     def visitUnary(self, client:Expr.Unary)->object:
         rhs = self.evaluate(client.right)
@@ -156,7 +196,7 @@ class Interpreter(ExprVisitor,StmtVisitor):
         # operator is !, logical not.
         return not self.isTruthy(rhs)
     '''
-    E4. Evaluate a Binary expression.
+    E5. Evaluate a Binary expression.
 
     Get the left and right values, then do the thing. A special case is that
     + is overloaded to be a string concatenator.
