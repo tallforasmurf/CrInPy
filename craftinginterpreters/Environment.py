@@ -76,7 +76,7 @@ class Environment(dict):
             self.enclosing.assign(name,value)
         else:
             # we are the global scope and we don't have it
-            raise NameError(f"Undefined variable: {name.lexeme}")
+            raise NameError(name.lexeme)
     '''
     Define (as in "var = expr") a value at this scope level.
 
