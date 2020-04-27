@@ -212,10 +212,13 @@ class Parser:
         return Stmt.Expression(expr)
 
     '''
-    Expression parsing! For reference, this is the expression grammar to be parsed:
+    Expression parsing! For reference, this is the expression grammar to be parsed
+    (as modified in section 8.4.1 to include assignment):
 
     sequence       → expression ( , expression )*
-    expression     → equality ;
+    expression     → assignment ;
+    assignment     → IDENTIFIER "=" assignment
+                   | equality;
     equality       → comparison ( ( "!=" | "==" ) comparison )* ;
     comparison     → addition ( ( ">" | ">=" | "<" | "<=" ) addition )* ;
     addition       → multiplication ( ( "-" | "+" ) multiplication )* ;
@@ -238,10 +241,36 @@ class Parser:
             result = Expr.Binary(result, operator, rhs)
         return result
     '''
-    E1. Process the expression by deferring to equality
+    E0. Process the expression by deferring to assignment.
     '''
     def expression(self)->Expr.Expr:
-        return self.equality()
+        return self.assignment()
+    '''
+    E1. Process what may or may not be an assignment expression.
+    '''
+    def assignment(self)->Expr.Expr:
+        '''
+        Suck up what might be an assignment target, or might be an expression.
+        '''
+        possible_lhs = self.equality()
+        '''
+        If the next token is not "=", we are done, with an expression.
+        '''
+        if not self.match(EQUAL):
+            return possible_lhs
+        '''
+        Now ask, We have something =, but is it variable =?
+        '''
+        if not isinstance(possible_lhs, Expr.Variable):
+            # flag an error at the "=" token, which is previous
+            self.error(self.previous(), "Invalid target for assignment")
+        '''
+        We have variable = something, collect the r-value.
+        Notice the recursion? We take a = b = c as a = (b = c).
+        '''
+        rhs = self.assignment()
+        return Expr.Assign(possible_lhs.name, rhs)
+
     '''
     E2. Process the equables: comparable (op comparable)*
     '''
