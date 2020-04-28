@@ -143,7 +143,7 @@ class Parser:
             self.advance();
     '''
     Statement parsing! For reference, this is the statement grammar as of
-    Chapter 8.2.1:
+    Chapter 8.5.2 (blocks):
 
         program           → declaration* EOF
 
@@ -155,7 +155,8 @@ class Parser:
 
         statement         → expr_statement
                           | print_statement
-                          # etc TBS
+                          | block
+        block             → '{' declaration* '}'
         expr_statement    → expression ';'
         print_statement   → "print" expression ';'
         # etc TBS
@@ -182,9 +183,22 @@ class Parser:
     def statement(self) -> Stmt.Stmt:
         if self.match(PRINT):
             return self.print_stmt()
+        if self.match(LEFT_BRACE):
+            return Stmt.Block( self.block() )
         # other statement keywords TBS
         # None of the above, assume expression statement
         return self.expr_stmt()
+    '''
+    SS1. Absorb a block, which is any declarations to a '}'
+         Note an empty block is allowed; return can be [].
+    '''
+    def block(self) -> List[Stmt.Stmt]:
+        stmts = []
+        while (not self.check(RIGHT_BRACE)) and (not self.isAtEnd()) :
+            stmts.append( self.declaration() )
+        self.consume(RIGHT_BRACE, "Expect '}' after block.")
+        return stmts
+
     '''
     SD1. Var statement
     '''

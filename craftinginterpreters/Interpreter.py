@@ -149,7 +149,31 @@ class Interpreter(ExprVisitor,StmtVisitor):
         if client.initializer: # is not None,
             value = self.evaluate(client.initializer)
         self.environment.define( client.name.lexeme, value )
+    '''
+    S4. Block statement. At visitBlock we create the local scope, but then
+    pass execution to a subroutine. Why is not clear as of 8.5.2. Can a block
+    be executed from another statement type? Maybe fun?
 
+    In a note, Nystrom observes (correctly IMO) that the handling of the
+    environment here is inelegant, but that the alternative is verbose.
+    '''
+    def visitBlock(self, client:Stmt.Block):
+        context = Environment(self.environment)
+        self.execute_block( client.statements, context )
+    '''
+    Note on try/except/finally: as (apparently) in Java, if self.execute()
+    raises an exception, our finally: section will be executed as Python
+    unwinds the stack looking for an except: clause to handle the exception.
+    This ensures restoration of the enclosing context even after an error.
+    '''
+    def execute_block(self, stmts:List[Stmt.Stmt], context=Environment ):
+        save_context = self.environment # need to restore this before return
+        try:
+            self.environment = context # establish local scope
+            for statement in stmts:
+                self.execute(statement)
+        finally:
+            self.environment = save_context
     '''
     Expression evaluation!
     ----------------------
