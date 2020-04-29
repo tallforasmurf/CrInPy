@@ -15,6 +15,7 @@ from Parser import Parser
 from Token import Token
 from TokenType import *
 from Expr import Expr
+import Stmt
 from AstPrinter import AstPrinter
 from Interpreter import Interpreter
 
@@ -71,17 +72,25 @@ def run_prompt():
 
     Must make the Interpreter instance here, so as to preserve its Environment
     across separate calls.
+
+    Challenge 8#1: allow single-entry expressions with results display, "desk
+    calculator mode" operation. Since with Chapter 8, the Parser and
+    Interpreter are completely organized around statements, it is not
+    possible to feed a bare expression; it has to be an "expression
+    statement" ending in a semicolon. Help the user by supplying that.
     '''
     interactive_interpreter = Interpreter(parse_error)
     while True:
         try:
-            line_in = input('> ')
+            line_in = input('> ').strip()
         except EOFError:
             print("\nk thx byeee")
             sys.exit()
         except KeyboardInterrupt:
             print()
             sys.exit()
+        if not line_in.endswith(';'):
+            line_in += ';'
         run_lox(line_in,interactive_interpreter)
         HAD_ERROR = False
 
@@ -89,19 +98,36 @@ def run_prompt():
 
 
 def run_lox(lox_code:str, interpreter=None):
-    # tokenize the input string.
+    '''
+    Tokenize the input string. If any errors are reported, stop.
+    '''
     scanner = Scanner(lox_code,lex_error)
     tokens = scanner.scanTokens()
     if HAD_ERROR: return
-    # parse the tokens.
+    '''
+    Parse the scanned tokens. If any semantic errors, stop.
+    '''
     parser = Parser(tokens, parse_error)
     program = parser.parse()
     if HAD_ERROR: return
-    # no error, so program is in fact [Stmt...]
-    # make an interpreter if we need one
-    if interpreter is None: interpreter = Interpreter(parse_error)
-    #print('executing!...\n')
-    interpreter.interpret(program)
+
+    if 0 == len(program): return # null statement, {} or // cmt
+    if interpreter is None: # if we need an Interpreter, make one now.
+        interpreter = Interpreter(parse_error)
+    '''
+    Parsing reports no error, so program is now [Stmt...].
+    Per challenge 8#1, separate the real programs from single expression
+    statements and handle differently.
+    '''
+    if 1 == len(program) and isinstance(program[0],Stmt.Expression):
+        '''
+        All of lox_code was a single statement which was not any kind
+        of declarator, but a single expression. Get its value and print.
+        '''
+        value = interpreter.one_line_program(program)
+        print(value)
+    else:
+        interpreter.interpret(program)
 
 '''
 The book provides (at least?) two variations of the function error():

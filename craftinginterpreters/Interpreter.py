@@ -71,10 +71,9 @@ class Interpreter(ExprVisitor,StmtVisitor):
         self.environment = Environment() # no ancestor, hence, global
 
     '''
-    The only entry point is the following, which receives a list of Stmt
-    objects, as produced by Parser.parse. It returns nothing; the value
+    The entry point for statements is the following, which receives a list of
+    Stmt objects, as produced by Parser.parse. It returns nothing; the value
     of a Lox program is all in its side-effects, notable its prints.
-
     '''
     def interpret(self, program:List[Stmt.Stmt]):
         try:
@@ -82,6 +81,14 @@ class Interpreter(ExprVisitor,StmtVisitor):
                 self.execute(a_statement)
         except Interpreter.EvaluationError as EVE:
             self.error_report(EVE.token, EVE.message)
+
+    '''
+    Optional entry point for Challenge 8#1, permit "desk calculator mode".
+    program is known to be a single Stmt.Expression. Return its value.
+    '''
+    def one_line_program(self, program:List[Stmt.Stmt])->object:
+        value = self.evaluate(program[0].expression)
+        return value
 
     '''
     Utility functions
