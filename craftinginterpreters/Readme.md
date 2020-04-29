@@ -1,5 +1,4 @@
-What is this?
-===============
+# What is this?
 
 This repo contains my version of code found in the book CRAFTING INTERPRETERS by Bob Nystrom. I'm reading from the online text found at https://craftinginterpreters.com.
 
@@ -13,11 +12,9 @@ Direct quotes from Nystrom's work are kept to a minimum, and only used when expl
 My own text and Python code has
 License:<a rel="license" href="http://creativecommons.org/licenses/by-nc/4.0/"><img alt="Creative Commons License" style="border-width:0" src="https://i.creativecommons.org/l/by-nc/4.0/88x31.png" /></a><br />This work is licensed under a <a rel="license" href="http://creativecommons.org/licenses/by-nc/4.0/">Creative Commons Attribution-NonCommercial 4.0 International License</a>.
 
-Chapter 4
-==========
+## Chapter 4
 
-Java vs Python modules (Section 4.1)
--------------------
+### Java vs Python modules (Section 4.1)
 
 The first problem I run into is understanding how the code of Jlox, the Java interpreter, is structured. (I am hampered in this by not knowing Java!) Every module starts with a `package` statement, for example here are parts of the first snippets the reader is to try to work with.
 
@@ -50,13 +47,11 @@ The package statement tells me that Nystrom's setup has a two-level folder struc
 
 I don't think that's a problem, in fact it's an advantage to have the import dependencies of each module explicit.
 
-Error Handling (Section 4.1.1)
--------------------------
+### Error Handling (Section 4.1.1)
 
 Nystrom is using a program global, hadError, set in various places and tested in others. Not sure I like this, but whatever. At least, Python makes the use of a global more obvious, first by the convention of using an all-cap name HAD\_ERROR, second by having to write `global HAD_ERROR` in any function that sets it. Points to Python.
 
-Token Types (Section 4.2.1)
----------------------------
+### Token Types (Section 4.2.1)
 
 A new Java/Python problem arises. The book uses an enum for the 35 or so token types. I started to make that a Python Enum, but the Python Enum is a pitiful thing. It's a class, so any reference to an enumerated value can't be just its name, but the qualified name. So given
 
@@ -66,8 +61,7 @@ A new Java/Python problem arises. The book uses an enum for the 35 or so token t
 
 the code can't just refer to `LEFT_PAREN`, it has to say `TokenType.LEFT_PAREN` which is just ugly. Explicit, but ugly. (Points to Java/C.) Plus I don't know if the Java enums are effectively ints, and if so, whether at some point the book won't try to compare token types for greater or less. So maybe I should use an IntEnum, but that requires me to specify each int value (the auto() initializer isn't allowed). Bleagh. I'm going to make them globals of the TokenType module initialized to unique ints.
 
-Token (Section 4.2.3)
------------------
+### Token (Section 4.2.3)
 
 This class uses the Java keyword `final`, which I learn means "read-only after initialization". OK, Python has that in the `@property` decorator, so the equivalent of
 
@@ -88,8 +82,7 @@ A bit more awkward, for sure. OTOH, the Java class implements a rather verbose `
 
 However, the class initializer can specify its token type argument as a type, where (see above) mine are just ints. Also its `toString()` can display `type` as its name e.g. COMMA where mine can't, without I set up some kind of name-to-value map. I need to rethink the use of Enum for TokenType.
 
-The Scanner (Sections 4.5-4.7)
-----------------------------
+### The Scanner (Sections 4.5-4.7)
 
 I have implemented the complete code now, and run it successfully against the simple lexeme test files in Nystrom's repo. I made one significant change. In his Scanner.java, the scanner reports errors by invoking `Lox.error()`, a function defined in the main module. I copied the `error()` function in my plox.py module. However, it isn't practical for code in Scanner.py to refer back to plox.py. Python namespaces don't work that way.
 
@@ -101,11 +94,9 @@ So I did that; i.e. I changed Scanner so that besides a string of text it accept
 
 I changed the error reporting for string literals as well. There's really only one possible error in a string, the absence of a terminator. That won't be found until the scanner has sucked up all the text to EOF. At which point it reports the error as happening on the line number where EOF happened. Which could be a long way from where the orphan opening quote was. So I saved the line number and start position of the opening quote, and when reporting the "unterminated quote" error, give that position, not the EOF position.
 
-Chapter 5
-===========
+## Chapter 5
 
-Visitor Pattern (Sections 5.2-3)
-----------------------
+### Visitor Pattern (Sections 5.2-3)
 
 Oh boy, my first real learning moment. He shows this snippet,
 
@@ -173,8 +164,7 @@ Is that a "generic"? Something else Java-related to read up on.
 
 (Next day) I have absorbed the basics of the Visitor Pattern and have written it up for my own pleasure, see [visitations.md](https://github.com/tallforasmurf/CrInPy/blob/master/craftinginterpreters/visitations.md) in this repo. Also in that note are comments on the contrasting implementations between Java and Python. Then I implemented the code from the wiki article, see visitortest.py.
 
-Generating ASTs(*sic*) (Section 5.2.2)
-------------------------
+### Generating ASTs(*sic*) (Section 5.2.2)
 
 Nystrom generates the two modules Expr and Stmt automatically, using one-time code `GenerateAst`. It basically defines a little DSL; a table of definitions for the 20-odd subclasses of the abstract classes `Expr` and `Stmt`. I have repeated that work in Python, calling it `make_AST`. (Pedantically speaking, the ASTs are in fact the dynamic tree-structured collections of instances of `Expr` and `Stmt` that are created at runtime, not the classes that compose them. But whatever.)
 
@@ -206,8 +196,7 @@ This may come back to bite me later? Maybe. Also, isn't it good that Python synt
 
 Anyway, on with learning about ASTs. ASTerisks. ASTers. ASTronomics?
 
-Not Very Pretty Printer (Section 5.4)
---------------------------------------
+### Not Very Pretty Printer (Section 5.4)
 
 I call foul! In this section, Nystrom writes code to visit a tree and print its contents. But we have not seen any code whatever for *building* a tree. We've seen the classes that will be the nodes of the tree, and we've talked about the Visitor Pattern as a way of processing a tree in various ways *after it's built* -- but we have not seen any code for building one.
 
@@ -215,11 +204,9 @@ In particular, we have not seen the code that takes a list of Token objects, as 
 
 Not gonna do it. I'll proceed on to the parsing chapter, and maybe revisit the printer problem when I have a tree built.
 
-Chapter 6
-===========
+## Chapter 6
 
-Java optional arguments
------------------------
+### Java optional arguments
 
 An important utility function in the parser is `match()` defined so:
 
@@ -249,8 +236,7 @@ def match(self, *types:TokenType)->bool:
 
 Easy, except for the irritation that, because all the Parser machinery is methods of a class, every damn method call has to have `self.` in front of it, and every parameter list starts with `self`.
 
-Parser Error Handling (Section 6.3, see also The Scanner above)
-----------------------------------------
+### Parser Error Handling (Section 6.3, see also The Scanner above)
 
 With the parser we are getting into more sophisticated error handling than in the scanner, and I am finding Nystrom's methods a bit on the opaque side. First there's the use of Java `throw` as in the `consume` method.
 
@@ -287,8 +273,7 @@ The ParseError class itself is easy enough to translate, it is just
 
 Thus a Python Exception derived from one of the standard exceptions. But should it be returned or should it be raised? Time may tell.
 
-Error handling rant (Section 6.3.2)
--------------------------------------
+### Error handling rant (Section 6.3.2)
 
 Sorry Mr. Nystrom, this section, for the non-Java programmer, is a puzzler. I've just been reading a [tutorial on Java Exceptions](https://docs.oracle.com/javase/tutorial/essential/exceptions/index.html) and it is just very hard to match up what the book is advocating, to what Oracle says is possible or conventional.
 
@@ -307,8 +292,7 @@ private ParseError error(Token token, String message) {
 
 N.B. the Oracle [tutorial on creating exceptions](https://docs.oracle.com/javase/tutorial/essential/exceptions/creating.html) says  nothing about an exception subclass having properties of *any* kind, let alone code. So, where, in what context, is that call to `Lox.error()` going to be executed? And to what caller is it returning a new instance of itself? And why would it do that?
 
-Error Handling clarification (Section 6.3.3)
---------------------------
+### Error Handling clarification (Section 6.3.3)
 
 Ok the above confusions get somewhat straightened out in the final section of the chapter, by whichI mean (a) he explains something he's been withholding and (b) it gets to look a lot more like Python.
 
@@ -330,8 +314,7 @@ I thought by "last chapter" he meant, the last chapter of the book. There is a m
 
 Why did I skip over it? Because at that point, the only way I would have to unit-test that code would have been, to cobble up some kind of expression-tree-building scaffold code. Or code a static tree of Expr's in the printer module. Now, a chapter later, I have a nice expression-tree-builder I need to test. Now I need to go and implement that exercise. But again, upside-down pedagogy.
 
-Printer, and Challenges
-------------------------
+### Printer, and Challenges
 
 I did the expression printer, taking pains to follow the nice Visitor pattern, see [AstPrinter.py](https://github.com/tallforasmurf/CrInPy/blob/master/craftinginterpreters/AstPrinter.py). It will be easy to expand it to print other things as we add statements to the AST.
 
@@ -339,8 +322,7 @@ However, the top part of it, the meta-class `astVisitor` is potentially useful f
 
 I also implemented challenge #1, the comma operator; and challenge #3, giving a separate error message for a binop that lacks a left hand value.
 
-Chapter 7
-===========
+## Chapter 7
 
 I have implemented the Expr interpreter. It went quite easily. I'm onto Nystrom's method now, so when he left obvious loose ends dangling I did not get upset, but just kept reading, waiting for him to weave them in. Which he mostly did.
 
@@ -352,8 +334,7 @@ His handler for the Interpreter takes the same arguments, but only displays the 
 
 And as with the Scanner and Parser classes, my top-level code passes the error handler when intantiating the class, rather than having the object try to call back into the calling module by name, which doesn't work well (at all?) with Python namespaces.
 
-"Challenges"
---------------
+### Challenges
 
 Challenge 3 at the end of the chapter is, figure out a way to diagnose division by zero nicely. *Hey*-o! I did that automatically, in the course of handling other errors. I saw that was a possibility and just included it in the process of converting built-in exceptions into the custom exception.
 
@@ -366,8 +347,7 @@ bore. So no doubt this is the reason that the languages that allow mixed-type co
 
 Finally, I think that on balance it is a bad idea, in a language described as "simple", to get into the game of coercing types at all. Once you do it in one situation, the user can justifiably call you "inconsistent" if you fail to do it in any other situation.
 
-Chapter 8
-============
+## Chapter 8
 
 Working through this chapter I add the parsing and interpreting code for var and print statements, and for executing expression statements and print statements.
 
@@ -381,8 +361,7 @@ is useless, but
 
 will presumably change the state of the program somehow. 
 
-Section 8.3
-------------
+### Section 8.3
 
 Now we are defining the "Environment", what in more primitive days on APL (that's a pun, but nobody is going to get it) we called the "symbol table". Anyway, I perhaps foolishly run ahead of the text and read the Environment.java module and [implement it in full](https://github.com/tallforasmurf/CrInPy/blob/master/craftinginterpreters/Environment.py). I feel clever, because where Nystrom has a class that *contains* a Java hash map, I make my Environment a sub-class of dict so it *is* a hash-map.
 
@@ -404,8 +383,7 @@ And I code up a very similar piece of Python, then I realize this is just beggin
 
 But I didn't actually code it that way; just too tricksy.
 
-Section 8.4
--------------
+### Section 8.4
 
 So implementing assignment didn't present any surprises. Especially because I had already prepared the complete Environment class, working from the Java code. Otherwise I'd have had to add its `assign()` method in the middle of implementing the Interpreter code to execute assignment.
 
@@ -446,5 +424,38 @@ def assignment(self)->Expr.Expr:
     return Expr.Assign(possible_lhs.name, rhs)
 ```
 
+### Challenge 1
+
+Challenge 1 is to re-enable the "desk-top calculator" mode we had a couple chapters ago, when the Parser and Interpreter only handled expressions. The user could type in `10/3` and get back `3.333333333335`. Over Chapters 7 and 8 we have converted the Interpreter so it only accepts a list of Statement objects, and the Parser so that it only parses statements, which in particular meant that it required everything to end in semicolons. And the Interpreter didn't return any values because Statements don't return values.
+
+How to get back to an interactive REPL (read-interpret-print-loop, and acronym from LISP)? I looked at what I had wrought. It would have been possible to call into the Interpreter at its `evaluate()` method with an `Expr` object. That was the old pre-Chapter-7 code still there. The problem was that the Parser no longer returned any `Expr` objects; it only returned a list of `Stmt` objects. One of those could be an "expression statement" but I didn't want to get into the business of taking one of those apart at the top level of the program.
+
+What I finally did was, after parsing, to look at the result. If it was a single statement of the Expression type, I passed it to a new Interpreter entry point, which would execute it and return its value.
+
+```
+    if 1 == len(program) and isinstance(program[0],Stmt.Expression):
+        value = interpreter.one_line_program(program)
+        print(value)
+    else:
+        interpreter.interpret(program)
+```
+
+I also gave the user a little hand: in the console-input code, if the user enters a line that doesn't end in ";" I paste one on for her. That may come back to bite me later, but it's a help for now.
+
+It isn't horribly kludgy. But it is complex enough to make you appreciate the brutal simplicity of LISP, in which there *are* no "statements", only expressions.
+
+### Challenge 2
+
+Challenge 2 was to find a way to make it illegal to reference a variable that had been declared but not assigned a value. The code as shown in Chapter 8 (and not changed later I believe) gives a new variable the value *nil* when it is created, so my code follows that, adding the variable to the Environment with a value of `None`, Python's equivalent.
+
+This challenge would require one of two things, neither of which seems acceptable. One, find a special, initial value, which could mean "not initialized", and which would have to be checked-for every time a variable was referenced. That has two problems. A, nil/None are valid literal values that a variable could be given by assignment, and there is no "out of band" value that could be given to a variable to say "I'm not initialized". Every other possible value might arise in normal execution. And B, checking for "not initialized" every time a variable is fetched would be a bad performance hit, especially when the overwhelming majority of checks would find nothing.
+
+The second way would be to keep a separate list of variable names that have been declared (`var some_name;`) but not yet assigned a value. Don't file them in the dictionary with the initialized names. Then, when code refers to a name, and it isn't found, the only change is to have to decide which of two error messages to give. If the missing name is in the list of declared but not initialized names, say "uninitialized variable x"; otherwise say "undefined variable x".
+
+(Incidentally, Python does this. I ran into it by accident the other day: an error message "variable x referenced before assignment". It can only come up in some very odd circumstances.)
+
+That approach needs a bunch of extra code in the Environment, messing up a particularly clean implementation of mine. It is not a performance hit, however. All references and most assignments would be unaffected. Only when assigning to a variable for the very first time, it would not be found in the dictionary; then you have to look it up in the other list and create it.
+
+I could do this, now I've thought it through, but I choose not to.
 
 
