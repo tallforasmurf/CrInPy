@@ -450,12 +450,12 @@ Challenge 2 was to find a way to make it illegal to reference a variable that ha
 
 This challenge would require one of two things, neither of which seems acceptable. One, find a special, initial value, which could mean "not initialized", and which would have to be checked-for every time a variable was referenced. That has two problems. A, nil/None are valid literal values that a variable could be given by assignment, and there is no "out of band" value that could be given to a variable to say "I'm not initialized". Every other possible value might arise in normal execution. And B, checking for "not initialized" every time a variable is fetched would be a bad performance hit, especially when the overwhelming majority of checks would find nothing.
 
-The second way would be to keep a separate list of variable names that have been declared (`var some_name;`) but not yet assigned a value. Don't file them in the dictionary with the initialized names. Then, when code refers to a name, and it isn't found, the only change is to have to decide which of two error messages to give. If the missing name is in the list of declared but not initialized names, say "uninitialized variable x"; otherwise say "undefined variable x".
+The second way would be to keep a separate list of variable names that have been declared (`var some_name;`) but not yet assigned a value. Don't file them in the dictionary with the initialized names; file the names in, let us call it `limbo`. Then, when code refers to a name, and it isn't found, the only change is to have to decide which of two error messages to give. If the missing name is in `limbo`, say "uninitialized variable x"; otherwise say "undefined variable x".
 
 (Incidentally, Python does this. I ran into it by accident the other day: an error message "variable x referenced before assignment". It can only come up in some very odd circumstances.)
 
-That approach needs a bunch of extra code in the Environment, messing up a particularly clean implementation of mine. It is not a performance hit, however. All references and most assignments would be unaffected. Only when assigning to a variable for the very first time, it would not be found in the dictionary; then you have to look it up in the other list and create it.
+That approach needs a bunch of extra code in the Environment, messing up a particularly clean implementation of mine. It is not a performance hit; all references and most assignments would be unaffected. Only when assigning to a variable for the very first time, it would not be found in the dictionary; then you have to look it up in the other list and create it.  However, thinking further -- there would have to be a limbo at each level of scope. If user code is trying to reference `x` in a local scope, is the error that the user did not declare `x` in this scope, or that she did not initialize the `x` that might be in limbo in a more global scope?
 
-I could do this, now I've thought it through, but I choose not to.
+I could do this, now I've thought it through, but I choose not to. It's a bunch of code with not clear benefit and some ambiguity.
 
 
