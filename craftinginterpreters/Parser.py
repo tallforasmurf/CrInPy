@@ -53,7 +53,7 @@ class Parser:
     '''
     Initialize a tuple of the declaration keywords, see statement()
     '''
-    declarators = (CLASS,ELSE,FUN,FOR,IF,VAR,WHILE)
+    declarators = (CLASS,FUN,VAR)
     '''
     Top level and only external entry to this code: Initiate parsing of the
     list of tokens given us at initialization.
@@ -154,8 +154,10 @@ class Parser:
         var_declare       → 'var' IDENTIFIER (= expression)? ';'
 
         statement         → expr_statement
+                          | if_statement
                           | print_statement
                           | block
+        if_statement      → "if" "(" expression ")" statement ( "else" statement )? ;
         block             → '{' declaration* '}'
         expr_statement    → expression ';'
         print_statement   → "print" expression ';'
@@ -181,6 +183,8 @@ class Parser:
     SS0. Absorb one ordinary statement through ';' .
     '''
     def statement(self) -> Stmt.Stmt:
+        if self.match(IF):
+            return self.if_statement()
         if self.match(PRINT):
             return self.print_stmt()
         if self.match(LEFT_BRACE):
@@ -209,16 +213,28 @@ class Parser:
             initializer = self.expression()
         self.consume(SEMICOLON, "Expect ';' after variable declaration.")
         return Stmt.Var(name, initializer)
-
     '''
-    SS1. Print statement.
+    SS1. If statement. Note that the "greedy" ELSE match ensures that the
+         ELSE of a nested IF is paired with its nearest IF.
+    '''
+    def if_statement(self)->Stmt.If:
+        self.consume(LEFT_PAREN,"'(' required for if-condition")
+        condition = self.expression()
+        self.consume(RIGHT_PAREN,"')' expected after if-condition")
+        then_clause = self.statement()
+        else_clause = None
+        if self.match(ELSE): # Grab an else right now
+            else_clause = self.statement()
+        return Stmt.If(condition,then_clause,else_clause)
+    '''
+    SS2. Print statement.
     '''
     def print_stmt(self)->Stmt.Print:
         expr = self.expression()
         self.consume(SEMICOLON, "Expect ';' after value.")
         return Stmt.Print(expr)
     '''
-    SS2. Expression statement.
+    SS9. Expression statement.
     '''
     def expr_stmt(self)->Stmt.Expression:
         expr = self.expression()

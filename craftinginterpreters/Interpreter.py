@@ -182,6 +182,15 @@ class Interpreter(ExprVisitor,StmtVisitor):
         finally:
             self.environment = save_context
     '''
+    S5. If statement.
+    '''
+    def visitIf(self, client:Stmt.If):
+        if self.isTruthy( self.evaluate( client.condition ) ):
+            self.execute( client.thenBranch )
+        elif client.elseBranch : # is not None,
+            self.execute( client.elseBranch )
+
+    '''
     Expression evaluation!
     ----------------------
 
