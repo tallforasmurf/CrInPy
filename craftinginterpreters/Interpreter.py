@@ -204,6 +204,22 @@ class Interpreter(ExprVisitor,StmtVisitor):
     def visitLiteral(self, client:Expr.Literal)->object:
         return client.value
     '''
+    EL. Handle logical operators AND and OR
+    '''
+    def visitLogical(self, client:Expr.Logical)->object:
+        lvalue = self.evaluate(client.left)
+        if client.operator.type == OR :
+            if self.isTruthy(lvalue) :
+                return lvalue # short-circuit (discard) everything after OR
+        else: # operator is AND
+            if not self.isTruthy(lvalue):
+                return lvalue # again, short-circuit everything following AND
+        '''
+        At this point, for OR, the lvalue was false; for AND it was true.
+        In either case, the value of the expression is whatever comes next.
+        '''
+        return self.evaluate(client.right)
+    '''
     E2. Evaluate a (grouping).
     '''
     def visitGrouping(self, client:Expr.Grouping)->object:

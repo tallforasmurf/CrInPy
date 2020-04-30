@@ -242,13 +242,16 @@ class Parser:
         return Stmt.Expression(expr)
 
     '''
-    Expression parsing! For reference, this is the expression grammar to be parsed
-    (as modified in section 8.4.1 to include assignment):
+    Expression parsing! For reference, this is the expression grammar to be
+    parsed (as modified in section 8.4.1 to include assignment) (as modified
+    in 9.3 to wrap "equality" inside the logical operators):
 
     sequence       → expression ( , expression )*
     expression     → assignment ;
     assignment     → IDENTIFIER "=" assignment
-                   | equality;
+                   | logic_or
+    logic_or       → logic_and ( "or" logic_and )*
+    logic_and      → equality ( "and" equality )*
     equality       → comparison ( ( "!=" | "==" ) comparison )* ;
     comparison     → addition ( ( ">" | ">=" | "<" | "<=" ) addition )* ;
     addition       → multiplication ( ( "-" | "+" ) multiplication )* ;
@@ -282,7 +285,7 @@ class Parser:
         '''
         Suck up what might be an assignment target, or might be an expression.
         '''
-        possible_lhs = self.equality()
+        possible_lhs = self.logic_or()
         '''
         If the next token is not "=", we are done, with an expression.
         '''
@@ -300,6 +303,26 @@ class Parser:
         '''
         rhs = self.assignment()
         return Expr.Assign(possible_lhs.name, rhs)
+    '''
+    E1a. Process logic-or.
+    '''
+    def logic_or(self)->Expr.Expr:
+        possible_lhs = self.logic_and()
+        while self.match(OR):
+            operator = self.previous() # save that OR token
+            rhs = self.logic_and()
+            possible_lhs = Expr.Logical(possible_lhs,operator,rhs)
+        return possible_lhs
+    '''
+    E1b. Process logic-and.
+    '''
+    def logic_and(self)->Expr.Expr:
+        possible_lhs = self.equality()
+        while self.match(AND):
+            operator = self.previous()
+            rhs = self.equality()
+            possible_lhs = Expr.Logical(possible_lhs,operator,rhs)
+        return possible_lhs
 
     '''
     E2. Process the equables: comparable (op comparable)*
