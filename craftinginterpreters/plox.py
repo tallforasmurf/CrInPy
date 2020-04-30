@@ -89,7 +89,7 @@ def run_prompt():
         except KeyboardInterrupt:
             print()
             sys.exit()
-        if not line_in.endswith(';'):
+        if not line_in.endswith(';') and not line_in.endswith('}'):
             line_in += ';'
         run_lox(line_in,interactive_interpreter)
         HAD_ERROR = False
