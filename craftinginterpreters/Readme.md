@@ -486,3 +486,40 @@ Not a lot of computing in there, but in case there was any worry about a Python 
 
 Coding this I did bite myself with my favorite Python mistake, forgetting to put the parens on a simple function call, e.g. `something = self.methodname`. Python happily says, "oh, you want to assign the function `self.methodname` to some variable? Cool." And silently does so. Problems only surface many statements later when the code tries to use `something` and it's a function reference, not whatever I intended it to be.
 
+### Challenge: break statement
+
+Wow, this one stopped me:
+
+>  Add support for break statements...The syntax is a break keyword followed by a semicolon. It should be a syntax error to have a break statement appear outside of any enclosing loop. At runtime, a break statement causes execution to jump to the end of the nearest enclosing loop and proceeds from there. Note that the break may be nested inside other blocks and if statements that also need to be exited.
+
+The first problem is for the parser. There needs to be a flag `now_in_loop` which the parser sets when it begins processing a `while` or `for`, and can be checked upon finding a `break`. Not hard to do.
+
+The second issue is the runtime unwinding. The problem is that, at runtime, in an interpreter built on Python, the nesting of control statements is not expressed in a testable data structure, but in the Python execution stack:
+
+    visitWhile() invokes
+        visitBlock() invokes
+            visitIf() invokes
+                visitBreak()
+
+how do we get out of that? Thinking this out: the only two problems are the while and the block. Execution of `if` visits either its `then` or `else` statement; whether that's an assignment, a function call, a block, or a `break` makes no odds to the `if`; it has finished and returns. Again for functions, a function body is also a single statement (typically a block); when that ends for any reason, function execution is done. So we don't need any special "unwinding" logic for ordinary statements; they just return as normal.
+
+The block statement is different; it contains a list that might be `{stmt;stmt;break;stmt...}`. When it executes the break, it has to stop as if it had reached the end of its list. It's easy to put a test for a break statement in the condition of the loop that runs down the list.
+
+The `while` already has a user-defined continuation test; in principle it only needs to `and` that test with a test of a flag that would be set by execution of `break`. (Wait: that implies that a block has to execute a break, not just recognize one and stop.) Now, where to store that flag? It has to be visible to the `while` code, and also visible to a `break` that might be nested several environments deep.
+
+Oh, now, wait a minute. We already have this structure of nested local environments, with a lookup algorithm that finds the latest-defined version of a variable. Suppose part of execution of `while` is to do, in effect, `breakflag=false;` and the execution of `break` is simply to do `breakflag=true;`. Even if the `break` is nested in several blocks, the assignment logic will find the most recently defined break-flag. So that would work...
+
+...not quite. This is valid code and not unheard of:
+
+    while (i < i_limit)
+        while (j < j_limit)
+            if (array[i,j] == sentinel) break;
+            j = j+1
+        i = i+1
+
+Nystrom's challenge says, "causes execution to jump to the end of the nearest enclosing loop". So break in the inner shouldn't end the outer loop. Well, that's fixable: when a `while` starts it clears the break-flag, and again when it ends, it clears the break-flag.
+
+Next issue: the break-flag is to be stored in the environment as a variable; what to call it? It cannot be called anything that is a valid variable name, otherwise somebody, someday, will use that name and file a bug because their loop breaks too soon. Fortunately, (checking the Environment code) it accepts as a name, any string from a `Token.lexeme`. The Parser will never allow creation of a variable with a nonstandard name, but there's no reason the while-code can't assign to a variable named `¿seguir?`. That's "out of band" from normal code.
+
+OK, I think I have a plan here. I will work on this tomorrow. "Thanks for watching." (A wee shout-out to you-tuber James Sharman.)
+
