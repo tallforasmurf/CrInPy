@@ -458,4 +458,31 @@ That approach needs a bunch of extra code in the Environment, messing up a parti
 
 I could do this, now I've thought it through, but I choose not to. It's a bunch of code with not clear benefit and some ambiguity.
 
+## Chapter 9
+
+### section 9.2, if statement
+
+Yup, what I said up there about my helpfully appending a ';' if the user didn't type one in calculator mode? It came back to bite me. Testing the if-statement, I entered a `{block of code}` which immediately caused an error, something about a semicolon. There's no semicolon in there... I actually had to trace into the parser to realize, oh yes there is a semicolon following the `}`. So I changed the interactive routine to only append one if the line ended in neither `;` nor `}`. Then all proceeded smoothly.
+
+### sesction 9.3 and 9.4, loops
+
+This went very smoothly. I really dislike the C-style `for (;;)` statement, but I was impressed with Nystrom's approach, to "de-sugar" it by reducing it to the statements already implemented. With that hint, I coded my version; then I went back to the text. His implementation was much smoother than my first cut at it, so I revised to match.
+
+The test of the loop is a simple fibonacci calculation:
+
+```
+var a = 0;
+var b = 1;
+
+while (a < 1000000) {
+  print a;
+  var temp = a;
+  a = b;
+  b = temp + b;
+}
+```
+
+Not a lot of computing in there, but in case there was any worry about a Python implementation being slow? The user execution time of the command `python3 plox.py test_fib.lox` is 0.026 seconds of user time. That 26 milliseconds includes loading python3, initializing it, reading the several hundred lines of code of the interpreter from several different files, compiling that, then executing that code while it reads, compiles, and executes the test program. In other words, execution time is negligible.
+
+Coding this I did bite myself with my favorite Python mistake, forgetting to put the parens on a simple function call, e.g. `something = self.methodname`. Python happily says, "oh, you want to assign the function `self.methodname` to some variable? Cool." And silently does so. Problems only surface many statements later when the code tries to use `something` and it's a function reference, not whatever I intended it to be.
 
