@@ -149,6 +149,12 @@ class Interpreter(ExprVisitor,StmtVisitor):
         if str_value.endswith('.0') : str_value = str_value[0:-2]
         print(str_value)
     '''
+    Sq. Execute a while statement.
+    '''
+    def visitWhile(self, client:Stmt.While):
+        while self.isTruthy( self.evaluate(client.condition ) ):
+            self.execute(client.body)
+    '''
     S3. Var statement.
     '''
     def visitVar(self, client:Stmt.Var):
