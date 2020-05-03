@@ -233,7 +233,6 @@ class Parser:
     Okayyyy but I think there will be problems with error messages...
     '''
     def for_stmt(self)->Stmt.Block:
-        self.in_loop = True # Ch 9 challenge - break allowed
         ''' at this point we have matched FOR, check ( '''
         self.consume(LEFT_PAREN,"Expect '(' after 'for'")
         '''
@@ -287,8 +286,6 @@ class Parser:
         ''' if there is an initializer, we need to put the loop in a block '''
         if init_Stmt:
             loop_Stmt = Stmt.Block( [init_Stmt,loop_Stmt] )
-
-        self.in_loop = False
         return loop_Stmt
 
     '''
