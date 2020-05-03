@@ -28,6 +28,9 @@ Summarizing the Environment API:
         Set name.lexeme to value in the nearest environment where it is defined.
         Raise NameError if it is not known.
 
+    store(self, name:str, value:object)
+        Set name to value in the nearest environment where it is defined.
+        Raise NameError if it is not known.
     get(self, name:Token)->object
         Return value of name.lexeme from its closest (most local) definition.
         Raise NameError if not found. Uses fetch().
@@ -97,7 +100,7 @@ class Environment(dict):
     def fetch(self, name:str)->object:
         if self.__contains__(name):
             return self.__getitem__(name)
-        if self.enclosing : # is not None,
+        if self.enclosing is not None: # note an empty dict is falsey
             return self.enclosing.fetch(name)
         # we are the global scope and we don't have this name.
         # Put the name string in the "args" of the NameError exception.
@@ -105,16 +108,20 @@ class Environment(dict):
 
     '''
     Assign a value (any object) to a name, if the name is defined in this or
-    an enclosing scope, otherwise NameError.
+    an enclosing scope, otherwise NameError. As with assign, we have two
+    levels, assign to dereference a Token, and store to do the work.
     '''
     def assign(self, name:Token, value:object):
-        if self.__contains__(name.lexeme):
-            self.__setitem__(name.lexeme,value)
-        elif self.enclosing: # is not None,
-            self.enclosing.assign(name,value)
+        self.store(name.lexeme, value)
+
+    def store(self, name:str, value:object):
+        if self.__contains__(name):
+            self.__setitem__(name,value)
+        elif self.enclosing is not None:
+            self.enclosing.store(name,value)
         else:
             # we are the global scope and we don't have it
-            raise NameError(name.lexeme)
+            raise NameError(name)
     '''
     Define (as in "var = expr") a value at this scope level.
 
