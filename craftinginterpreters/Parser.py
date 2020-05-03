@@ -158,6 +158,7 @@ class Parser:
                           | if_statement
                           | print_statement
                           | while statement
+                          | break statement
                           | block
         forStmt           → "for" "(" ( varDecl | exprStmt | ";" )
                             expression? ";"
@@ -172,11 +173,12 @@ class Parser:
     '''
     S0. Top of the grammar: Declaration statements.
     '''
-    def declaration(self) -> Stmt.Stmt:
+    def declaration(self, in_loop=False) -> Stmt.Stmt:
         try:
             if not self.peek().type in Parser.declarators:
                 # it isn't VAR etc, so get normal statement
-                return self.statement()
+                return self.statement(in_loop=in_loop)
+            # statement is one of the declarators,
             if self.match(VAR):
                 return self.var_stmt()
             # other declaration keywords TBS
@@ -188,33 +190,34 @@ class Parser:
     '''
     SS0. Absorb one ordinary statement through ';' .
     '''
-    def statement(self) -> Stmt.Stmt:
+    def statement(self, in_loop=False) -> Stmt.Stmt:
 
         if self.match(FOR):
-            return self.for_stmt()
+            return self.for_stmt(in_loop=in_loop)
         if self.match(IF):
-            return self.if_stmt()
+            return self.if_stmt(in_loop=in_loop)
         if self.match(PRINT):
             return self.print_stmt()
         if self.match(WHILE):
-            return self.while_stmt()
+            return self.while_stmt(in_loop=in_loop)
+        if self.match(BREAK):
+            return self.break_stmt(in_loop=in_loop)
         if self.match(LEFT_BRACE):
-            return Stmt.Block( self.block() )
+            return Stmt.Block( self.block(in_loop=in_loop) )
         # None of the above, assume expression statement
         return self.expr_stmt()
     '''
     SS1. Absorb a block, which is any declarations to a '}'
          Note an empty block is allowed; return can be [].
     '''
-    def block(self) -> List[Stmt.Stmt]:
+    def block(self, in_loop=False) -> List[Stmt.Stmt]:
         stmts = []
         while (not self.check(RIGHT_BRACE)) and (not self.isAtEnd()) :
-            stmts.append( self.declaration() )
+            stmts.append( self.declaration(in_loop=in_loop) )
         self.consume(RIGHT_BRACE, "Expect '}' after block.")
         return stmts
-
     '''
-    SD1. Var statement
+    SD1. Var statement. Doesn't nest, so doesn't care about in_loop.
     '''
     def var_stmt(self) -> Stmt.Var:
         name = self.consume(IDENTIFIER, "Expect variable name.")
@@ -232,7 +235,7 @@ class Parser:
          { init; while (test) {body; post;} }
     Okayyyy but I think there will be problems with error messages...
     '''
-    def for_stmt(self)->Stmt.Block:
+    def for_stmt(self, in_loop=False)->Stmt.Block:
         ''' at this point we have matched FOR, check ( '''
         self.consume(LEFT_PAREN,"Expect '(' after 'for'")
         '''
@@ -264,9 +267,10 @@ class Parser:
             post_Expr = self.expression()
         self.consume(RIGHT_PAREN, "expect ')' to close for(...)")
         '''
-        finally, gather the body of the loop, a single statement
+        finally, gather the body of the loop, a single statement, (typically
+        a block but who knows?) which is definitely in a loop.
         '''
-        body_Stmt = self.statement()
+        body_Stmt = self.statement(in_loop=True)
         '''
         put it all together in a single statement. I coded this before seeing
         what Nystrom does, and his was better so I changed it. I was always
@@ -293,17 +297,17 @@ class Parser:
     SS1. If statement. Note that the "greedy" ELSE match ensures that the
          ELSE of a nested IF is paired with its nearest IF.
     '''
-    def if_stmt(self)->Stmt.If:
+    def if_stmt(self,in_loop=False)->Stmt.If:
         self.consume(LEFT_PAREN,"'(' required for if-condition")
         condition = self.expression()
         self.consume(RIGHT_PAREN,"')' expected after if-condition")
-        then_clause = self.statement()
+        then_clause = self.statement(in_loop=in_loop)
         else_clause = None
         if self.match(ELSE): # Grab an else right now
-            else_clause = self.statement()
+            else_clause = self.statement(in_loop=in_loop)
         return Stmt.If(condition,then_clause,else_clause)
     '''
-    SS2. Print statement.
+    SS2. Print statement. Doesn't nest, doesn't care about in_loop.
     '''
     def print_stmt(self)->Stmt.Print:
         expr = self.expression()
@@ -312,14 +316,22 @@ class Parser:
     '''
     SS3. While statement.
     '''
-    def while_stmt(self)->Stmt.While:
+    def while_stmt(self, in_loop=False)->Stmt.While:
         self.consume(LEFT_PAREN, "Expect '(' after 'while'.")
         condition = self.expression()
         self.consume(RIGHT_PAREN, "Expect while condition to close with ')'.")
-        body = self.statement()
+        body = self.statement(in_loop=True)
         return Stmt.While(condition, body)
     '''
-    SS9. Expression statement.
+    SSb. Break statement. Syntax error if not in_loop.
+    '''
+    def break_stmt(self, in_loop)->Stmt.Break:
+        if not in_loop:
+            self.error(self.previous(),"Break statement only allowed within a loop.")
+        self.consume(SEMICOLON, "Expect ';' after 'break'.")
+        return Stmt.Break(self.previous())
+    '''
+    SS9. Expression statement. Doesn't nest, doesn't know in_loop.
     '''
     def expr_stmt(self)->Stmt.Expression:
         expr = self.expression()
