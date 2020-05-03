@@ -74,6 +74,7 @@ class Scanner():
                 '''
                 self.keywords = {
                         "and":    AND,
+                        "break":  BREAK,
                         "class":  CLASS,
                         "else":   ELSE,
                         "false":  FALSE,
