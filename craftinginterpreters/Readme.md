@@ -537,3 +537,30 @@ So the next obvious move is to make the in-loop variable an integer, incremented
 OK, new policy: it is *not* a syntax error to write `break;` outside a loop. It is a *run-time* error. That would be one way to handle it. But that's not good either. It's the sort of error the compiler/parser ought to catch, not leave like a little cow-pie for the user to step into an unknown time ahead.
 
 I need a complete rethink. But! I got quite a ways into coding this, including modifying the list of valid tokens and regenerating the Stmt class (Make\_AST, from chapters ago) to have a .Break subclass. And now I'd like to back all that work out and... *shit* I have completely lost my Git discipline. If I was doing it right, I'd have started a *branch* before beginning, and then could reset out and that would be it. I didn't. Now I have to go back and clean up manually.
+
+### and the break challenge is broken (he he)
+
+While on my daily walk I figured out how to handle the parser. I would pass the in-loop flag as a parameter to the methods that deal with compound statements, and to the break statement. When the compound statements recurse to handle nested statements, they pass the same flag to their descendants. Thus when parsing reaches a BREAK token, it knows if it has inherited the fact of being in a loop or not.
+
+The implementation was a bit trickier than I thought. I had to do some tweaking of the Environment code that I had translated from Java. Partly this was because some of its methods received the name of the variable to fetch or set, as part of a Token object. Some received the name as a string. Then, in the Interpreter, executing a while or a block, I want to set or test the value of a continue flag often, and it would be silly to make that constant name string into a Token just so the environment fetch() method could get it out again.
+
+So I split the Environment's methods for assign and retrieve into pairs, one that took a Token and one that took a plain string. The latter can be called by internal code.
+
+Then I could make the changes I discussed earlier. In `while`, assign True to a special Continue variable; then test it before every iteration. In effect and-ing it with the user's condition. In `break` just assign False to that variable. And in a block, test the variable before executing each statement, so the block can be abandoned as soon as a break has executed.
+
+And after picking off the usual stupid typos, it all worked:
+
+```
+> var i = 9; while (i> 0) { print i; i=i-1; if (i==4) {print "4!"; break;}}
+9
+8
+7
+6
+5
+4!
+> 
+```
+
+Note the break is nested in a block nested in an if. But the nested scopes of the Environment work fine. The `while` defines a variable in the global scope; by the time execution reaches the `break` there are two temporary local environments, one for each left-brace. But the assignment finds the global variable.
+
+So that was a nice Sunday afternoon exercise.
