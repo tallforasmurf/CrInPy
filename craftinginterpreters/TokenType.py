@@ -54,6 +54,7 @@ TRUE = 36
 VAR = 37
 WHILE = 38
 EOF = 39
+BREAK = 40
 
 TokenNames = {
     1 : "LEFT_PAREN",
