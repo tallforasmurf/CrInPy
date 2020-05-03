@@ -523,3 +523,17 @@ Next issue: the break-flag is to be stored in the environment as a variable; wha
 
 OK, I think I have a plan here. I will work on this tomorrow. "Thanks for watching." (A wee shout-out to you-tuber James Sharman.)
 
+### continuing the challenge
+
+Hah. Started working on the "not hard to do" parser bit. IS hard! Because loops can be *nested*, doh! So a simple flag won't work, because when can you clear it? If you set the in-loop flag on beginning a `while`, and clear it when finishing the `while`, you just cleared it for a possible enclosing `while`:
+
+    while (foo)
+        while (bar)
+            break; // this is ok
+        break; // this is not ok but should be
+
+So the next obvious move is to make the in-loop variable an integer, incremented at the start of parsing a loop, decremented on the way out. That might be fine except for errors. In fact, cleaning up after an error is a problem no matter how the in-loop is marked. On an error, the parser has a "synchronize" method that tries to find the start of the next statement, skipping as many tokens as it needs to, which is indeterminate. Does it peel out of a loop, or not?
+
+OK, new policy: it is *not* a syntax error to write `break;` outside a loop. It is a *run-time* error. That would be one way to handle it. But that's not good either. It's the sort of error the compiler/parser ought to catch, not leave like a little cow-pie for the user to step into an unknown time ahead.
+
+I need a complete rethink. But! I got quite a ways into coding this, including modifying the list of valid tokens and regenerating the Stmt class (Make\_AST, from chapters ago) to have a .Break subclass. And now I'd like to back all that work out and... *shit* I have completely lost my Git discipline. If I was doing it right, I'd have started a *branch* before beginning, and then could reset out and that would be it. I didn't. Now I have to go back and clean up manually.
