@@ -27,5 +27,7 @@ class StmtVisitor:
         raise NotImplementedError("No visitor defined for Stmt.Return")
     def visitVar(self, client:Stmt.Var):
         raise NotImplementedError("No visitor defined for Stmt.Var")
+    def visitBreak(self, client:Stmt.Break): # Ch 9 challenge
+        raise NotImplementedError("No visitor defined for Stmt.Break")
     def visitWhile(self, client:Stmt.While):
         raise NotImplementedError("No visitor defined for Stmt.While")
