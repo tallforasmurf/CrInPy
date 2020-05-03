@@ -154,10 +154,16 @@ class Parser:
         var_declare       → 'var' IDENTIFIER (= expression)? ';'
 
         statement         → expr_statement
+                          | for_statement
                           | if_statement
                           | print_statement
+                          | while statement
                           | block
-        if_statement      → "if" "(" expression ")" statement ( "else" statement )? ;
+        forStmt           → "for" "(" ( varDecl | exprStmt | ";" )
+                            expression? ";"
+                            expression? ")" statement
+        if_statement      → "if" "(" expression ")" statement ( "else" statement )?
+        whileStmt         → "while" "(" expression ")" statement
         block             → '{' declaration* '}'
         expr_statement    → expression ';'
         print_statement   → "print" expression ';'
@@ -183,13 +189,17 @@ class Parser:
     SS0. Absorb one ordinary statement through ';' .
     '''
     def statement(self) -> Stmt.Stmt:
+
+        if self.match(FOR):
+            return self.for_stmt()
         if self.match(IF):
-            return self.if_statement()
+            return self.if_stmt()
         if self.match(PRINT):
             return self.print_stmt()
+        if self.match(WHILE):
+            return self.while_stmt()
         if self.match(LEFT_BRACE):
             return Stmt.Block( self.block() )
-        # other statement keywords TBS
         # None of the above, assume expression statement
         return self.expr_stmt()
     '''
@@ -206,7 +216,7 @@ class Parser:
     '''
     SD1. Var statement
     '''
-    def var_stmt(self) -> Stmt.Stmt:
+    def var_stmt(self) -> Stmt.Var:
         name = self.consume(IDENTIFIER, "Expect variable name.")
         initializer = None
         if self.match(EQUAL):
@@ -214,10 +224,79 @@ class Parser:
         self.consume(SEMICOLON, "Expect ';' after variable declaration.")
         return Stmt.Var(name, initializer)
     '''
+    SSf. For statement, which is an abomination but here we go.
+
+    Nystrom's approach is "de-sugaring", converting the higher-level statement
+    to its lower-level equivalent. In the case of "for(init;test;post) body;"
+    we construct:
+         { init; while (test) {body; post;} }
+    Okayyyy but I think there will be problems with error messages...
+    '''
+    def for_stmt(self)->Stmt.Block:
+        self.in_loop = True # Ch 9 challenge - break allowed
+        ''' at this point we have matched FOR, check ( '''
+        self.consume(LEFT_PAREN,"Expect '(' after 'for'")
+        '''
+        next is either "var..." or an expression or nothing. Initially I was
+        testing that the var stmt contained a non-null initializer, but
+        that technically is not an error. You could have "for (var foo;...)"
+        which doesn't make much sense but could work as long as the test
+        doesn't refer to foo.
+        '''
+        init_Stmt = None
+        if not self.match(SEMICOLON):
+            if self.match(VAR):
+                init_Stmt = self.var_stmt() # consumes the ;
+            else:
+                init_Stmt = self.expr_stmt() # also consumes ';'
+        '''
+        next is a possibly-empty test expression followed by ';'
+        '''
+        test_Expr = Expr.Literal(True) # for(...;;...) loops forever
+        if not self.check(SEMICOLON) :
+            test_Expr = self.expression() # does not consume ';'
+        self.consume(SEMICOLON, "expect ';' after loop condition")
+        '''
+        and then an optional post-loop expression before the ')' -- Nystrom
+        calls it the increment, which it almost always is.
+        '''
+        post_Expr = None
+        if not self.check(RIGHT_PAREN):
+            post_Expr = self.expression()
+        self.consume(RIGHT_PAREN, "expect ')' to close for(...)")
+        '''
+        finally, gather the body of the loop, a single statement
+        '''
+        body_Stmt = self.statement()
+        '''
+        put it all together in a single statement. I coded this before seeing
+        what Nystrom does, and his was better so I changed it. I was always
+        building a block, with possibly null init/post statements. That
+        required a change in the Interpreter to allow null statements in a
+        block. I didn't see initially that if the init, or test, or post
+        items are left out, I could just build simpler statements.
+
+        Body of the loop is either a single statement, or two statements
+        in a block, the second being the increment.
+        '''
+        loop_body = body_Stmt
+        if post_Expr : # is given, make loop body a block
+            loop_body = Stmt.Block( [body_Stmt, Stmt.Expression(post_Expr)] )
+        ''' the loop is that body, conditioned by the test expression '''
+        loop_Stmt = Stmt.While(test_Expr,loop_body)
+        ''' if there is an initializer, we need to put the loop in a block '''
+        if init_Stmt:
+            loop_Stmt = Stmt.Block( [init_Stmt,loop_Stmt] )
+
+        self.in_loop = False
+        return loop_Stmt
+
+    '''
+
     SS1. If statement. Note that the "greedy" ELSE match ensures that the
          ELSE of a nested IF is paired with its nearest IF.
     '''
-    def if_statement(self)->Stmt.If:
+    def if_stmt(self)->Stmt.If:
         self.consume(LEFT_PAREN,"'(' required for if-condition")
         condition = self.expression()
         self.consume(RIGHT_PAREN,"')' expected after if-condition")
@@ -233,6 +312,15 @@ class Parser:
         expr = self.expression()
         self.consume(SEMICOLON, "Expect ';' after value.")
         return Stmt.Print(expr)
+    '''
+    SS3. While statement.
+    '''
+    def while_stmt(self)->Stmt.While:
+        self.consume(LEFT_PAREN, "Expect '(' after 'while'.")
+        condition = self.expression()
+        self.consume(RIGHT_PAREN, "Expect while condition to close with ')'.")
+        body = self.statement()
+        return Stmt.While(condition, body)
     '''
     SS9. Expression statement.
     '''
