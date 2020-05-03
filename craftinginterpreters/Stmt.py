@@ -87,6 +87,14 @@ class While(Stmt):
 	def accept(self, visitor:object):
 		return visitor.visitWhile(self)
 
+class Break(Stmt):
+	def __init__(self, keyword:Token ):
+		# initialize attributes
+		self.keyword = keyword
+
+	def accept(self, visitor:object):
+		return visitor.visitBreak(self)
+
 class Class(Stmt):
 	def __init__(self, name:Token,methods:List[Function],superclass:Expr.Variable=None ):
 		# initialize attributes
