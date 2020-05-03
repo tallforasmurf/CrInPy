@@ -91,6 +91,7 @@ STMTS = [
     "Return     : Token keyword, Expr value",
     "Var        : Token name, Expr initializer",
     "While      : Expr condition, Stmt body",
+    "Break      : Token keyword", # Ch 9 challenge
     "Class      : Token name, List[Function] methods, Expr.Variable=None superclass"
     ]
 
