@@ -22,6 +22,8 @@ from TokenType import *
 from Environment import Environment
 from typing import Callable, List
 
+CONTINUE = "¿seguir?" # string used by while and block to recognize break
+
 class Interpreter(ExprVisitor,StmtVisitor):
 
     '''
@@ -149,11 +151,16 @@ class Interpreter(ExprVisitor,StmtVisitor):
         if str_value.endswith('.0') : str_value = str_value[0:-2]
         print(str_value)
     '''
-    Sq. Execute a while statement.
+    Sq. Execute a while statement. Set the "continue?" flag True on entry.
+        Stop executing if it becomes False. Return it to True before exit.
     '''
     def visitWhile(self, client:Stmt.While):
-        while self.isTruthy( self.evaluate(client.condition ) ):
+        self.environment.define(CONTINUE,True)
+        while self.isTruthy( self.evaluate(client.condition ) ) \
+              and self.environment.fetch(CONTINUE) :
             self.execute(client.body)
+        # if there was a break in this loop, it has done its job.
+        self.environment.define(CONTINUE,True)
     '''
     S3. Var statement.
     '''
@@ -163,28 +170,43 @@ class Interpreter(ExprVisitor,StmtVisitor):
             value = self.evaluate(client.initializer)
         self.environment.define( client.name.lexeme, value )
     '''
+    Sbb. Break statement. Set the magic "continue?" variable False. That's it.
+         This statement can only exist in the scope of a while loop.
+    '''
+    def visitBreak(self, client:Stmt.Break):
+        self.environment.store(CONTINUE,False)
+    '''
     S4. Block statement. At visitBlock we create the local scope, but then
     pass execution to a subroutine. Why is not clear as of 8.5.2. Can a block
     be executed from another statement type? Maybe fun?
 
     In a note, Nystrom observes (correctly IMO) that the handling of the
     environment here is inelegant, but that the alternative is verbose.
+
+    Note on the break statement. When a break is within a block, the block
+    should stop processing its list of statements immediately. However a
+    break could be nested, for example { if (p) { if (q) { break } } }. A
+    break executed at any level within the block should cause the block to
+    exit. For this we use the CONTINUE flag set by the break statement.
     '''
     def visitBlock(self, client:Stmt.Block):
         context = Environment(self.environment)
         self.execute_block( client.statements, context )
-    '''
-    Note on try/except/finally: as (apparently) in Java, if self.execute()
-    raises an exception, our finally: section will be executed as Python
-    unwinds the stack looking for an except: clause to handle the exception.
-    This ensures restoration of the enclosing context even after an error.
-    '''
+
     def execute_block(self, stmts:List[Stmt.Stmt], context=Environment ):
         save_context = self.environment # need to restore this before return
+        '''
+        Note on try/except/finally: as (apparently) in Java, if self.execute()
+        raises an exception, our finally: section will be executed as Python
+        unwinds the stack looking for an except: clause to handle the exception.
+        This ensures restoration of the enclosing context even after an error.
+        '''
         try:
             self.environment = context # establish local scope
             for statement in stmts:
                 self.execute(statement)
+                if not self.environment.fetch(CONTINUE):
+                    break
         finally:
             self.environment = save_context
     '''
