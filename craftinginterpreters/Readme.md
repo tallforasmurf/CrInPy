@@ -564,3 +564,83 @@ And after picking off the usual stupid typos, it all worked:
 Note the break is nested in a block nested in an if. But the nested scopes of the Environment work fine. The `while` defines a variable in the global scope; by the time execution reaches the `break` there are two temporary local environments, one for each left-brace. But the assignment finds the global variable.
 
 So that was a nice Sunday afternoon exercise.
+
+# Chapter 10, Functions
+
+Glad to be getting to this. But I immediately have some questions.
+
+## Function Syntax: "7()" a call?
+
+First order of business, as in prior chapters, is to define the syntax of a function call, which has rather a high priority. In the expression grammar he sets up
+
+    unary → ( "!" | "-" ) unary | call ;
+    call  → primary ( "(" arguments? ")" )* ;
+
+He then spends some words justifying the part about `(`*args*`)*`, as allowing a production like,
+
+    getAfunc()()(foo)
+
+Yeah, no prob: `getAfunc` is a function that takes no arguments, returns a *function* that also takes no arguments, but returns *another* function that takes `foo`. Easy.
+
+What boggles me, and he doesn't explain, is that the thing preceding a `(` is a *primary* -- not an identifier. Further down in the grammar we have,
+
+    primary        → NUMBER | STRING | IDENTIFIER | "false" | "true" | "nil"
+                   | "(" expression ")"
+
+Which means that by this grammar, `7(foo)` and `"hello"(foo)` and `false(foo)` are all acceptable function calls. And indeed, in his Java code, he has (slightly edited) `callee = primary()`.
+
+I'm filing an issue at the book on github, even though I know that lots of other people have been filing issues since 2017 and nobody has commented on this. I'll probably get chastened.
+
+## Loopy loop
+
+For a while I thought Java was going to have a leg up on Python in the loop department, and it may, but not this time. I was looking at his Java for processing function arguments:
+
+```
+    if (!check(RIGHT_PAREN)) {
+      do {
+        arguments.add(expression());
+      } while (match(COMMA));
+    }
+    Token paren = consume(RIGHT_PAREN, "Expect ')' after arguments.");
+```
+
+And thinking, oh rats, I can't do that in Python because it does not have the do-statement-while construct, which does something and looks for a reason to stop afterward. In the above, since the current token is *not* a right paren, collect an argument, and as long as the next thing is a comma, do it again.
+
+Python only has while-condition-do, testing the condition at the top of the loop. How to translate and not have a lot of code. Hmmm. After a lot of thought I came up with,
+```
+    while not self.check(RIGHT_PAREN):
+        args.append( self.expression() )
+        self.match(COMMA)
+    rparen = self.consume(RIGHT_PAREN,"This message cannot be displayed")
+```
+which is the same length but isn't quite the same. His loop invariant is "next token is whatever followed a comma." Mine is, "next token is not a right paren".
+
+It took some thinking to be sure they did the same thing on correct input. I suspect they behave differently on invalid input. Take the case of the error,
+
+    funcname(foo;bar)
+
+where there's an extraneous semicolon. His code will process the argument `foo`, then it will fail to match a comma, and will exit the loop, followed by an error message like `Line 1 char 25: Expect ')' after arguments`.
+
+My code will process `foo`, look for a comma and do nothing because the next thing isn't a comma but a semicolon, and go around again. The `expression()` method will choke on the semicolon and give the message `Line 1 char 25: Unanticipated input ';'`.
+
+In either case we stop with an error message, but the error is detected at different levels of code.
+
+Just a little mental "fuzzing" gives several things to try: `fun(,)` for example.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
