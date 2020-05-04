@@ -14,7 +14,7 @@ from Scanner import Scanner
 from Parser import Parser
 from Token import Token
 from TokenType import *
-from Expr import Expr
+#import Expr
 import Stmt
 from AstPrinter import AstPrinter
 from Interpreter import Interpreter
@@ -144,7 +144,7 @@ optional character position.
 '''
 
 def lex_error(line:int, message:str, where:int=None):
-    report(line,  f"chr {where}" if where else "", message)
+    report(line,  f"chr {where}" if (where is not None) else "", message)
 
 '''
 parse_error is called by the Parser with a Token from which both the line number and the operator
