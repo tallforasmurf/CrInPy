@@ -1,6 +1,8 @@
 '''
 
-The Parser class for plox. Refer to book section 6.2ff.
+# The Parser class Llox.
+
+Refer to book section 6.2ff.
 
 This work is licensed under a
   Creative Commons Attribution-NonCommercial 4.0 International License
@@ -30,8 +32,8 @@ This version is now modified to handle Statements, see Chapter 8.2ff.
 class Parser:
 
     '''
-    Define a parser error class based on the standard SyntaxError.
-    See Parser.error(). Refer to this as Parser.ParseError().
+    Define a private exception class based on the standard SyntaxError. See
+    error() for use. Refer to this as Parser.ParseError().
     '''
     class ParseError(SyntaxError):
         def __init__(self,a_token:Token,message:str):
@@ -39,7 +41,7 @@ class Parser:
             self.error_message = message
 
     '''
-    Initialize a new Parser instance passing a list of tokens as
+    Initialize a new Parser instance, receiving a list of tokens as
     produced by Scanner.py, and an error reporting function.
     '''
     def __init__(self, tokens:List[Token],error_report:Callable[[Token,str],None]):
@@ -51,18 +53,19 @@ class Parser:
         self.current = 0
 
     '''
-    Initialize a tuple of the declaration keywords, see statement()
+    Initialize a tuple of the declaration keyword types, see statement()
     '''
     declarators = (CLASS,FUN,VAR)
     '''
-    Top level and only external entry to this code: Initiate parsing of the
-    list of tokens given us at initialization.
+    Top level, and only, entry to this code: Initiate parsing of the list of
+    tokens given us at initialization. The result of successful parsing is a
+    list of Stmt objects to execute.
     '''
     def parse(self) -> Optional [Stmt.Stmt]:
         results = [] # List[Stmt.Stmt]
         try:
             while not self.isAtEnd():
-                results.append(self.declaration() )
+                results.append(self.declaration())
         except Parser.ParseError as PEX:
             self.error_report(PEX.error_token, PEX.error_message)
             results = None
@@ -75,7 +78,9 @@ class Parser:
     def peek(self) -> Token:
         return self.tokens[self.current]
     '''
-    U2. previous: last-consumed token; obvs. not to be called before advance()
+    U2. previous: last-consumed token, for when you get somewhere
+        via match(), which consumes the matched token, and you need
+        to quote it in an error message.
     '''
     def previous(self) -> Token:
         return self.tokens[self.current-1]
@@ -111,8 +116,8 @@ class Parser:
                 return True
         return False
     '''
-    U7. Require a particular token type, consume it if found, if not, report
-    an error. Currently this is the only method that calls self.error().
+    U7. Check for a particular token type and consume it if found. If no match,
+    report an error.
     '''
     def consume(self, ttype:int, message:str) -> Token:
         if self.check(ttype):
@@ -143,7 +148,7 @@ class Parser:
             self.advance();
     '''
     Statement parsing! For reference, this is the statement grammar as of
-    Chapter 8.5.2 (blocks):
+    Chapter 9:
 
         program           → declaration* EOF
 
@@ -239,25 +244,25 @@ class Parser:
         ''' at this point we have matched FOR, check ( '''
         self.consume(LEFT_PAREN,"Expect '(' after 'for'")
         '''
-        next is either "var..." or an expression or nothing. Initially I was
+        next is either "var...;" or "expression;" or just ";". Initially I was
         testing that the var stmt contained a non-null initializer, but
         that technically is not an error. You could have "for (var foo;...)"
         which doesn't make much sense but could work as long as the test
-        doesn't refer to foo.
+        expression doesn't refer to foo.
         '''
         init_Stmt = None
-        if not self.match(SEMICOLON):
+        if not self.match(SEMICOLON): # match() consumes a naked ';'
             if self.match(VAR):
-                init_Stmt = self.var_stmt() # consumes the ;
+                init_Stmt = self.var_stmt() # consumes the ';'
             else:
                 init_Stmt = self.expr_stmt() # also consumes ';'
         '''
         next is a possibly-empty test expression followed by ';'
         '''
         test_Expr = Expr.Literal(True) # for(...;;...) loops forever
-        if not self.check(SEMICOLON) :
+        if not self.check(SEMICOLON) : # look for, do not eat, ';'
             test_Expr = self.expression() # does not consume ';'
-        self.consume(SEMICOLON, "expect ';' after loop condition")
+        self.consume(SEMICOLON, "expect ';' after loop condition") # now!
         '''
         and then an optional post-loop expression before the ')' -- Nystrom
         calls it the increment, which it almost always is.
@@ -276,7 +281,7 @@ class Parser:
         what Nystrom does, and his was better so I changed it. I was always
         building a block, with possibly null init/post statements. That
         required a change in the Interpreter to allow null statements in a
-        block. I didn't see initially that if the init, or test, or post
+        block. I didn't see, initially, that if the init or test or post
         items are left out, I could just build simpler statements.
 
         Body of the loop is either a single statement, or two statements
@@ -293,7 +298,6 @@ class Parser:
         return loop_Stmt
 
     '''
-
     SS1. If statement. Note that the "greedy" ELSE match ensures that the
          ELSE of a nested IF is paired with its nearest IF.
     '''
@@ -476,10 +480,6 @@ class Parser:
         return self.primary()
     '''
     E7. pick up the pieces: literals and groups.
-
-    Those possibilities include: LEFT_BRACE, FUN, RETURN and etc. Presumably
-    such token types will be dealt with at a higher level, as part of parsing
-    statements.
 
     Note 3: here, as also in Scanner.py, I am substituting Python None for
     the Java literal null -- to represent the Lox literal nil.
