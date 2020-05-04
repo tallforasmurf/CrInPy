@@ -1,55 +1,89 @@
 '''
 
-Environment class for plox. Refer to book section 8.3
+# Environment
+
+Environment ("symbol table") class for plox. Refer to book section 8.3
 
 This work is licensed under a
   Creative Commons Attribution-NonCommercial 4.0 International License
   see http://creativecommons.org/licenses/by-nc/4.0/
 
-Summarizing the Environment API:
+## Overview
 
-    ancestor(distance:int) -> Environment
-        Return the nth enclosing (more global) Environment, 0 being
-        this one. No check of distance, will return None if one-over,
-        or cause an error "Nonetype has no method ancestor".
+The Lox Environment is a set of nested dictionaries. Each dict has a member
+'enclosing' which is the dictionary that represents its enclosing (more
+global) scope at runtime. The Java implementation overloads the instantiation
+call to pass or not pass an enclosing dict; here we use an optional parameter
+to __init__.
 
-    assignAt( distance:int, name:Token, value:object)
-        Assign value to Token.lexeme in the nth more global environment.
-        Uses ancestor().
+Where in Java, a dictionary (aka "mapping") is a library, in Python it is a
+built-in class. So unlike the Java version, here we make Environment a
+subclass of Python "dict". To implement the Lox operations get() and assign()
+we just call on the dict class operations __contains__, __getitem__, and
+__setitem__. That should make the Environment methods quite performant.
 
-    getAt( distance:int, name:Token ) -> object
-        Return value of Token.lexeme from the nth more global environment.
-        Uses ancestor().
+To implement the BREAK statement, both WHILE and BLOCK support set and query
+a named variable in the local scope. To simplify their operations, the
+fetch() and store() methods are factored out of the methods assign() and
+get() from the Java implementation.
 
-    define(self, name:str, value:object):
-        Set name to value in this environment. Name need not exist.
+## The Environment API:
 
-    assign(self, name:Token, value:object)
-        Set name.lexeme to value in the nearest environment where it is defined.
-        Raise NameError if it is not known.
+    Environment(enclosing=None)
 
-    store(self, name:str, value:object)
-        Set name to value in the nearest environment where it is defined.
-        Raise NameError if it is not known.
-    get(self, name:Token)->object
-        Return value of name.lexeme from its closest (most local) definition.
-        Raise NameError if not found. Uses fetch().
+        Create an empty environment. If no enclosing, this is the global
+        scope. Otherwise this environment is a relatively local scope to the
+        enclosing one.
 
-    fetch(self, name:str)->object
+    define(name:str, value:object):
+
+        Set name to value in this environment. Name need not exist. Name
+        will shadow any equal name in an enclosing environment.
+
+    fetch(name:str)->object
+
         Return the value of name from its closest (most local) definition.
         Raise NameError if not found.
 
-Apparently mappings are a big deal in Java, where they are basic to the
-language in Python.
+    get(name:Token)->object
 
-Anyway, the Lox Environment is a set of nested dictionaries. Each dict has a
-member 'enclosing' which is the dictionary that represents its enclosing
-(more global) syntactic scope at runtime. The Java implementation overloads
-the instantiation call to pass or not pass an enclosing dict; here we use
-an optional parameter to __init__.
+        Return value of name.lexeme from its closest (most local) definition.
+        Raise NameError if not found. Uses fetch().
 
-To implement the Lox operations get() and assign() we just call on the dict
-class operations __contains__, __getitem__ and __setitem__.
+    store(name:str, value:object)
+
+        Set name to value in the nearest environment where it is defined.
+        Raise NameError if name is not known.
+
+    assign(name:Token, value:object)
+
+        Set name.lexeme to value in the nearest environment where it is
+        defined. Raise NameError if it is not known. Uses store().
+
+    ancestor(distance:int) -> Environment
+
+        Return the nth enclosing (more global) Environment, 0 being this one.
+        No check of valid distance. If distance too high by 1, will return
+        None. If too high by >1, causes an error "'Nonetype' object has no
+        attribute 'ancestor'".
+
+    assignAt( distance:int, name:Token, value:object)
+
+        Assign value to Token.lexeme in the nth more global environment. Uses
+        ancestor() and assign().
+
+    getAt( distance:int, name:Token ) -> object
+
+        Return value of Token.lexeme from the nth more global environment.
+        Uses ancestor() and get().
+
+## Errors
+
+In a normal Python dict, fetching a key that doesn't exist raises KeyError.
+But here when a name is not found, it is an undefined Lox variable, so we
+raise NameError instead, as Python would for an undefined var.
+
+##A Puzzle
 
 A remaining puzzle, presumably explained later in the book. At the end of the
 Java version of this module, there is the following code:
@@ -65,8 +99,10 @@ Java version of this module, there is the following code:
 
 It appears to be overriding  the toString method of the Environment class?
 So that when called in an inner scope, it will return a recursive series of
-strings from most local to most global, separated by ->. But what is the string
-being returned? In Python the equivalent (I think) is str(the_dict) which returns
+strings from most local to most global, separated by ->. But what are the strings
+assigned to "result" and punctuated with '->'?
+
+In Python the equivalent (I think) is str(the_dict) which returns
 a display of the whole dict,
 
     >>> str(d)
@@ -87,12 +123,12 @@ class Environment(dict):
 
     '''
     Return the value of a name, if it exists at this or an enclosing scope,
-    otherwise raise NameError (not KeyError as a dict would normally do).
+    otherwise raise NameError.
 
-    This is broken into two levels. Code executing an expression comes to
-    get() with a Token for the name. Internal code, esp. visitWhile, comes
-    to fetch() with a string name. Also saves a few .lexeme de-references
-    when a definition is nested.
+    Code executing an expression comes to get() with a Token for the name.
+    Internal code, esp. visitWhile, comes to fetch() with a string name. Note
+    also that the recursion to the more global scope is done via fetch(),
+    saving a few .lexeme de-references when fetching a more global name.
     '''
     def get(self, name:Token)->object:
         return self.fetch(name.lexeme)
@@ -102,14 +138,14 @@ class Environment(dict):
             return self.__getitem__(name)
         if self.enclosing is not None: # note an empty dict is falsey
             return self.enclosing.fetch(name)
-        # we are the global scope and we don't have this name.
-        # Put the name string in the "args" of the NameError exception.
+        # We are the global scope and we don't have this name.
+        # Raise a NameError exception with the name string in the "args".
         raise NameError(name)
 
     '''
     Assign a value (any object) to a name, if the name is defined in this or
     an enclosing scope, otherwise NameError. As with assign, we have two
-    levels, assign to dereference a Token, and store to do the work.
+    levels, assign() to extract Token.lexeme, and store() to do the work.
     '''
     def assign(self, name:Token, value:object):
         self.store(name.lexeme, value)
@@ -123,18 +159,19 @@ class Environment(dict):
             # we are the global scope and we don't have it
             raise NameError(name)
     '''
-    Define (as in "var = expr") a value at this scope level.
+    Define (as in "var name = expr;") a value at this scope level.
 
     Note that while get() and assign() receive the name in the form of a
-    Token (presumably an IDENTIFIER one), this method gets the name as a
-    string. Note also that we do not check whether the name has already
-    been defined, see book section 8.3 for discussion.
+    Token, this method gets the name as a string. Note also that we do not
+    check whether the name has already been defined; see book section 8.3 for
+    that discussion.
     '''
     def define(self, name:str, value:object):
         self.__setitem__(name,value)
+
     '''
     Return our enclosing scope at a certain integer remove. As of this
-    writing I have not got to the discussion for this feature.
+    writing I have not got to the book's discussion for this feature.
 
     This is the code I am translating, it appears to allow distance==0
     and to not check for over-run.
@@ -146,21 +183,19 @@ class Environment(dict):
         }
         return environment;
 
-    How about a recursive one-line solution:
-        def ancestor(distance):
-            return self.enclosing.ancestor(distance-1) if distance>0 else self
+    I went for the recursive one-line solution below. Possibly I will have
+    to change that later in the book.
 
-    Coding note: this method returns the self-class Environment. Prior to
-    Python 3.7 that was not possible as that name has not been defined until
-    this class definition is closed. "from __future__ import annotations"
-    fixes this, and in 3.9 it will be fixed permanently.
+    Coding note: this method is annotated as returning the self-class
+    Environment. Prior to Python 3.7 that was not possible as that name has
+    not been defined until this class definition is closed. "from __future__
+    import annotations" fixes this in 3.7 and 3.8; in Python 3.9 it will be
+    fixed permanently.
     '''
+
     def ancestor(distance:int)->Environment:
-        env = self
-        while distance > 0 :
-            env = env.enclosing
-            distance -= 1
-        return env
+        return self.enclosing.ancestor(distance-1) if distance>0 else self
+
     '''
     The following functions get/set a value in an enclosing scope given its
     distance. Here is the Java,
@@ -174,7 +209,6 @@ class Environment(dict):
     Thing to note is that it assumes an Environment *contains* a values
     attribute which is a map. As I'm doing it, the Environment *is* the map.
     Thus, one less level of function indirection.
-
     '''
     def getAt( distance:int, name:Token ) -> object:
         return self.ancestor(distance).get(name)
