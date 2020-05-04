@@ -1,12 +1,14 @@
 '''
 
-Evaluate Expression trees.
+# Interpret Lox
 
-Refer to book section 7.2 and forward, ervised in 8.1 and forward.
+Interpret and execute Lox code, working on a syntax tree of Stmt objects, as
+prepared by Parser.py. Refer to book section 8.1 and forward.
 
 The interpreter is implemented as a "visitor" for the tree composed of Stmt
-and Expr objects. As such it has methods that correspond to (eventually) all
-of the methods defined in the StmtVisitor and ExprVisitor classes.
+objects. When interpreting an Expression, it "visits" the tree of Expr
+objects. As such it has methods that correspond to (eventually) all of the
+methods defined in the StmtVisitor and ExprVisitor classes.
 
 This work is licensed under a
   Creative Commons Attribution-NonCommercial 4.0 International License
@@ -22,7 +24,12 @@ from TokenType import *
 from Environment import Environment
 from typing import Callable, List
 
-CONTINUE = "¿seguir?" # string used by while and block to recognize break
+'''
+This global is the variable name string used by WHILE, BLOCK and BREAK to
+implement break statements. See Chapter 9, challenge 1.
+'''
+
+CONTINUE = "¿seguir?" # out of band variable name
 
 class Interpreter(ExprVisitor,StmtVisitor):
 
@@ -42,8 +49,8 @@ class Interpreter(ExprVisitor,StmtVisitor):
         }
 
     '''
-    Define our own exception class which will contain a token, from which
-    the line number can be gotten, and a specific message.
+    Define our own exception class which contains a token from which the line
+    number can be gotten, and a specific message.
     '''
     class EvaluationError(Exception):
         def __init__(self, token:Token, message:str):
@@ -51,15 +58,10 @@ class Interpreter(ExprVisitor,StmtVisitor):
             self.message=message
 
     '''
-    Nystrom's version of this class is unlike his Scanner class, which is
-    initialized with the text to scan. In his code, Interpreter receives the
-    Expr to evaluate at its interpret() method. This is presumably because he
-    anticipates instantiating one Interpreter object and using it repeatedly?
-
-    As with the Scanner class, he expects to report errors by calling
-    directly to an error printer in the Lox main class. As with our Scanner,
-    that isn't pythonic (or even possible) so again, I'm having an error
-    handler passed in to __init__.
+    As with the Scanner and Parser classes, Nystrom expects to report errors
+    by calling directly to an error display function in the Lox main class.
+    That isn't convenient (or even possible) in Python module structure, so
+    again, I'm having an error handler passed in to __init__.
     '''
     def __init__(self, error_report:Callable[[int,str],None]):
         self.error_report = error_report
@@ -67,15 +69,17 @@ class Interpreter(ExprVisitor,StmtVisitor):
         Create the global environment for this run. Personally I don't like
         calling it "environment". It's wordy and repetitive and also
         confusing given the number of "[eE]nvironments" we have. I'd prefer
-        "globals" since that's what this level is. But I have to use it or else
-        I'll be mentally translating Nystrom's code all the time.
+        "globals" since that's what this level is. But I have to use it or
+        else I'll surely make mistakes translating Nystrom's code.
         '''
         self.environment = Environment() # no ancestor, hence, global
 
     '''
-    The entry point for statements is the following, which receives a list of
-    Stmt objects, as produced by Parser.parse. It returns nothing; the value
-    of a Lox program is all in its side-effects, notable its prints.
+    The entry point for program execution is the following, which receives a
+    list of Stmt objects as produced by Parser.parse.
+
+    It returns nothing; the value of a Lox program is all in its
+    side-effects, i.e. printed or file output.
     '''
     def interpret(self, program:List[Stmt.Stmt]):
         try:
@@ -86,7 +90,8 @@ class Interpreter(ExprVisitor,StmtVisitor):
 
     '''
     Optional entry point for Challenge 8#1, permit "desk calculator mode".
-    program is known to be a single Stmt.Expression. Return its value.
+    The program is known to be a single Stmt.Expression instance. Return the
+    value of the expression.
     '''
     def one_line_program(self, program:List[Stmt.Stmt])->object:
         value = self.evaluate(program[0].expression)
@@ -111,11 +116,10 @@ class Interpreter(ExprVisitor,StmtVisitor):
         return True
     '''
     U2. Specify the meaning of equality in Lox. nil (None) is equal only to
-    itself. Python ensures that None is not equal to anything including
-    False.
+    itself. I think that Python's rules are the same: (None==None)->True,
+    None is not equal to anything else. So I'm just going with the built-in.
     '''
     def isEqual(self, lhs, rhs)->bool:
-        if (lhs is None) and (rhs is None) : return True
         return lhs == rhs
 
     '''
@@ -128,7 +132,7 @@ class Interpreter(ExprVisitor,StmtVisitor):
     statements produce no values, so the return type of the visit methods is
     Void, not Object." And all his visitXxx methods have an explicit "return
     null". In Python, the default for any method that doesn't execute
-    "return" is to return None. So I am not reproducing those "return null"s
+    "return" is to return None, so I am not reproducing those "return null"s
     '''
     def execute(self, a_statement:Stmt.Stmt):
         a_statement.accept(self)
@@ -136,7 +140,7 @@ class Interpreter(ExprVisitor,StmtVisitor):
     '''
     S1. Execute an expression statement. An expression STATEMENT does not
     return a value. Hence to be useful it must have a side-effect, e.g. a
-    function call.
+    function call. (But see one_line_program(), above.)
     '''
     def visitExpression(self, client:Stmt.Expression):
         self.evaluate(client.expression)
@@ -151,8 +155,18 @@ class Interpreter(ExprVisitor,StmtVisitor):
         if str_value.endswith('.0') : str_value = str_value[0:-2]
         print(str_value)
     '''
-    Sq. Execute a while statement. Set the "continue?" flag True on entry.
-        Stop executing if it becomes False. Return it to True before exit.
+    S3. Var statement.
+    '''
+    def visitVar(self, client:Stmt.Var):
+        value = None
+        if client.initializer: # is not None,
+            value = self.evaluate(client.initializer)
+        self.environment.define( client.name.lexeme, value )
+    '''
+    Sq. Execute a while statement. Set the CONTINUE flag True on entry.
+        Stop executing if it becomes False (because a BREAK was executed).
+        Force it to True before exit, so a BREAK in this loop won't break
+        a containing loop.
     '''
     def visitWhile(self, client:Stmt.While):
         self.environment.define(CONTINUE,True)
@@ -162,16 +176,10 @@ class Interpreter(ExprVisitor,StmtVisitor):
         # if there was a break in this loop, it has done its job.
         self.environment.define(CONTINUE,True)
     '''
-    S3. Var statement.
-    '''
-    def visitVar(self, client:Stmt.Var):
-        value = None
-        if client.initializer: # is not None,
-            value = self.evaluate(client.initializer)
-        self.environment.define( client.name.lexeme, value )
-    '''
-    Sbb. Break statement. Set the magic "continue?" variable False. That's it.
-         This statement can only exist in the scope of a while loop.
+    Sbb. Break statement. Set the magic CONTINUE variable False. That's it.
+         The Parser ensures this statement can only exist in the scope
+         of a loop. Thus we are sure that CONTINUE has been defined in
+         some enclosing scope.
     '''
     def visitBreak(self, client:Stmt.Break):
         self.environment.store(CONTINUE,False)
@@ -193,7 +201,7 @@ class Interpreter(ExprVisitor,StmtVisitor):
         context = Environment(self.environment)
         self.execute_block( client.statements, context )
 
-    def execute_block(self, stmts:List[Stmt.Stmt], context=Environment ):
+    def execute_block(self, stmts:List[Stmt.Stmt], context:Environment ):
         save_context = self.environment # need to restore this before return
         '''
         Note on try/except/finally: as (apparently) in Java, if self.execute()
@@ -204,9 +212,9 @@ class Interpreter(ExprVisitor,StmtVisitor):
         try:
             self.environment = context # establish local scope
             for statement in stmts:
-                self.execute(statement)
+                self.execute(statement) # any kind of statement, maybe break?
                 if not self.environment.fetch(CONTINUE):
-                    break
+                    break # oops, that was a BREAK, exit
         finally:
             self.environment = save_context
     '''
@@ -331,7 +339,7 @@ class Interpreter(ExprVisitor,StmtVisitor):
                 return lhs+rhs
             if type(lhs) != type(rhs) :
                 raise Interpreter.EvaluationError(client.operator,'Both operands must have the same type')
-            # at this point we know both operands are numbers. Fall through.
+            # at this point we know both PLUS operands are numbers. Fall through.
         '''
         All the remaining binops require numeric values.
 
