@@ -1,6 +1,8 @@
 '''
 
-The Scanner class for plox. Refer to book section 4.4.
+#Scanner class for plox
+
+Refer to book section 4.4.
 
 Because Java, Nystrom's Scanner class can refer to "Lox.error()" without
 having to import or otherwise link the Lox module into its namespace. Python
