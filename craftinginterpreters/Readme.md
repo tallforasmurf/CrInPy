@@ -627,8 +627,69 @@ In either case we stop with an error message, but the error is detected at diffe
 
 Just a little mental "fuzzing" gives several things to try: `fun(,)` for example.
 
+## Java Jive (Section 10.1.1ff)
 
+Once again I find myself at odds with Nystrom's pedagogy. He has a big swathe of complex code worked out and is now trying to dole it out in small comprehensible bits. Unfortunately it doesn't break down that way; there's a lot of stuff you need to know, before you can understand the starting pieces. Wait, example.
 
+We are implementing functions and function calls. We got the parsing out of the way yesterday. Parsing a function call produces an Expr.Call object, so:
+```
+class Call(Expr):
+    def __init__(self, callee:Expr,paren:Token,arguments:List[Expr] ):
+        # initialize attributes
+        self.callee = callee
+        self.paren = paren
+        self.arguments = arguments
+    def accept(self, visitor:object):
+        return visitor.visitCall(self)
+```
+After parsing, we have a three-part object with
+
+* The callee, the thing to be called, which can be any kind of expression that yields a callable thing;
+
+* the right-paren token that closed the call (that is just there because it contains a source line number we can use in error messages);
+
+* and a list of expressions for the arguments to the call.
+
+So far so perfectly clear. Now we want to implement this, execute the call at runtime. But Nystrom also knows that there are going to be built-in (he calls them "native") functions (digression: in APL they were "primitives") and also there will be Classes, which also are callable, and class methods, and probably other things. 
+
+What he has *not* said is, there is a general *class* of things that can be called with this syntax and (can legitimately turn up as the "callee" of a call). He has focused entirely on functions, but then he is forced to spring the class on us without explaining the need or purpose. He presents the interpreter code for a call in this Java:
+```
+ public Object visitCallExpr(Expr.Call expr) {         
+    Object callee = evaluate(expr.callee);
+
+    List<Object> arguments = new ArrayList<>();         
+    for (Expr argument : expr.arguments) { 
+      arguments.add(evaluate(argument));                
+    }                                                   
+```
+I'm reading along saying, uh huh, evaluate the expression to find out what we are calling, great, uh huh, evaluate each argument expression in the list of them, saving their values, ok. And then:
+```
+    LoxCallable function = (LoxCallable)callee;         
+    return function.call(this, arguments);              
+```
+You what now? Where did this LoxCallable thing come from? He "explains" as follows,
+
+> all that remains is to perform the call. We do that by casting the callee to a LoxCallable and then invoking a call() method on it. The Java representation of any Lox object that can be called like a function will implement this interface.
+
+My jaw is flapping. This is absolutely the first time in the book the term LoxCallable has appeared. I have no idea what is going on. I go off into his code and find out that `LoxCallable` is an "interface"; I go off into the googles and find out that a Java interface is an abstract class that defines methods but does not implement them; any other class can implement them.
+
+What boggles me is the use of the word "cast". I'm quite familiar with casts from C, for example. In C, notation like `i += (int)*memptr` tells the compiler, "trust me, the bits at the the address in memptr can safely be treated like an int". But the cast only tells the compiler how to treat the memory; it doesn't actually *change* the memory.
+
+If that's so for Java, then what happened back there in 
+
+    callee = evaluate(expr.callee);
+
+must have returned something of a class compatible with LoxCallable. This cast now just tells the compiler to believe that. But nothing we've done so far ever produced anything called LoxCallable.
+
+Well, wait, that's not too far-fetched because -- I suddenly realized -- we have not yet either parsed or executed a function *definition*. What's *callable* is a *defined function* and the language we have built to this point doesn't have those.
+
+Now, after 20 minutes of stewing about this, I realize, I can't possibly know what a LoxCallable is, because we haven't built any yet. Presumably when we get around to implementing a function *definition*, it will be obvious what kind of structure it needs to represent it, and that will be a LoxCallable.
+
+And when we know *that*, it will be obvious how to *execute* it.
+
+So **why the flak are we trying implement calls when we don't know what functions look like???**
+
+Upside-down pedagogy. I absolutely do not agree with this order of presentation.
 
 
 
