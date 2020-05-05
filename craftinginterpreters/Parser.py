@@ -41,6 +41,11 @@ class Parser:
             self.error_message = message
 
     '''
+    Define the essentially arbitrary limit on function arguments as a class var.
+    Per section 10.1.1 it's 255, but here we can reduce it for testing.
+    '''
+    Max_Args = 16
+    '''
     Initialize a new Parser instance, receiving a list of tokens as
     produced by Scanner.py, and an error reporting function.
     '''
@@ -345,7 +350,8 @@ class Parser:
     '''
     Expression parsing! For reference, this is the expression grammar to be
     parsed (as modified in section 8.4.1 to include assignment) (as modified
-    in 9.3 to wrap "equality" inside the logical operators):
+    in 9.3 to wrap "equality" inside the logical operators) (as modified in
+    10.1 to support function calls):
 
     sequence       → expression ( , expression )*
     expression     → assignment ;
@@ -353,14 +359,15 @@ class Parser:
                    | logic_or
     logic_or       → logic_and ( "or" logic_and )*
     logic_and      → equality ( "and" equality )*
-    equality       → comparison ( ( "!=" | "==" ) comparison )* ;
-    comparison     → addition ( ( ">" | ">=" | "<" | "<=" ) addition )* ;
-    addition       → multiplication ( ( "-" | "+" ) multiplication )* ;
-    multiplication → unary ( ( "/" | "*" ) unary )* ;
-    unary          → ( "!" | "-" ) unary
-                   | primary ;
+    equality       → comparison ( ( "!=" | "==" ) comparison )*
+    comparison     → addition ( ( ">" | ">=" | "<" | "<=" ) addition )*
+    addition       → multiplication ( ( "-" | "+" ) multiplication )*
+    multiplication → unary ( ( "/" | "*" ) unary )*
+    unary          → ( "!" | "-" ) unary | call
+    call           → primary ( "(" arguments? ")" )*
+    arguments      → expression ( "," expression )*
     primary        → NUMBER | STRING | IDENTIFIER | "false" | "true" | "nil"
-                   | "(" expression ")" ;
+                   | "(" expression ")"
 
     E0. Process a sequence of expressions, Challenge 1.
        My approach is, when comma is present, to make a binary Expr with
@@ -479,7 +486,40 @@ class Parser:
             return Expr.Unary(operator, rhs)
         return self.primary()
     '''
-    E7. pick up the pieces: literals and groups.
+    E7. process the call and other unaries.
+        The loop allows for the case of get_fun_getter()()(arg) in which the
+        first call yields a function that returns a function that takes
+        (arg). We are told the reason it isn't simply "while match(LEFT_PAREN)"
+        will become clear later.
+    '''
+    def call(self)->Expr.Expr:
+        an_expr = self.primary()
+        while True:
+            if self.match(LEFT_PAREN):
+                an_expr = self.finish_call(an_expr)
+            else:
+                break
+        return an_expr
+
+    def finish_call(self, callee:Expr.Expr)->Expr.Call:
+        # we are here because we've seen callee( -- don't leave without ')'
+        args = []
+        # there are only 3 ways out of this loop: seeing a ')' at an
+        # appropriate place, or somebody raises an error exception.
+        while not self.check(RIGHT_PAREN):
+            # next token is not ')'
+            args.append( self.expression() )
+            # expression complete: next token is not legal as an expression
+            if len(args) >= Parser.Max_Args:
+                raise Parser.ParseError(self.peek,f"Function may not have {len(args)} arguments")
+            self.match(COMMA) # if it is a comma, eat it
+            # next token is not comma: could be start of expression, or ')'
+        # next token is ')' without question
+        rparen = self.consume(RIGHT_PAREN,"This message cannot be displayed")
+        return Expr.Call(callee, rparen, args)
+
+    '''
+    E8. pick up the pieces: literals and groups.
 
     Note 3: here, as also in Scanner.py, I am substituting Python None for
     the Java literal null -- to represent the Lox literal nil.
