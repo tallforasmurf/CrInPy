@@ -22,6 +22,7 @@ from StmtVisitorClass import StmtVisitor
 from Token import Token
 from TokenType import *
 from Environment import Environment
+from LoxCallable import LoxCallable
 from typing import Callable, List
 
 '''
@@ -58,6 +59,18 @@ class Interpreter(ExprVisitor,StmtVisitor):
             self.message=message
 
     '''
+    Define the builtin clock() function as a class implementing LoxCallable.
+    '''
+    class builtinClock(LoxCallable):
+        import time
+        def arity(self): return 0
+        def call(self, interpreter:Interpreter, args:[object] )->float:
+            return time.time()
+        def __str__(self): return "native function 'time'"
+
+    '''
+    Initialize a new Interpreter instance.
+
     As with the Scanner and Parser classes, Nystrom expects to report errors
     by calling directly to an error display function in the Lox main class.
     That isn't convenient (or even possible) in Python module structure, so
@@ -69,10 +82,19 @@ class Interpreter(ExprVisitor,StmtVisitor):
         Create the global environment for this run. Personally I don't like
         calling it "environment". It's wordy and repetitive and also
         confusing given the number of "[eE]nvironments" we have. I'd prefer
-        "globals" since that's what this level is. But I have to use it or
-        else I'll surely make mistakes translating Nystrom's code.
+        "globals" since that's what this level is.
+
+        Section 10.2.1, preparing to add built-in functions, he changes this
+        to store a reference to the most global environment, and reasonably,
+        but unfortunately, calls it "globals". That's the name of a Python
+        built-in. Well we are already using Token.type, what's one more.
+
+        Create the globals environment and initialize it with an instance of
+        the clock function.
         '''
-        self.environment = Environment() # no ancestor, hence, global
+        self.globals = Environment() # no ancestor, hence, global
+        self.globals.define('clock',Interpreter.builtinClock())
+        self.environment = self.global_env # initialize nested environments
 
     '''
     The entry point for program execution is the following, which receives a
@@ -297,7 +319,62 @@ class Interpreter(ExprVisitor,StmtVisitor):
         # operator is !, logical not.
         return not self.isTruthy(rhs)
     '''
-    E5. Evaluate a Binary expression.
+    E6. Evaluate a call, callee_expression([args])
+        callee can be anything even parenthesized expression or another call
+    '''
+    def visitCall(self, client:Expr.Call)->object:
+        '''
+        Quote "First, we evaluate the expression for the callee. Typically,
+        this expression is just an identifier that looks up the function by
+        its name, but it could be anything."
+        '''
+        callee = self.evaluate(client.callee)
+        '''
+        Paragraphs later, we decide to check it as having the so-far-undefined
+        type of LoxCallable.
+        '''
+        if not isinstance(callee, LoxCallable) : # which isn't defined yet
+            raise Interpreter.EvaluationError(client.paren,
+                            "Only functions and classes can be called.")
+
+        ''' Evaluate the parameters left to right and save them '''
+        params = []
+        for argument in client.arguments:
+            params.append( self.evaluate(argument) )
+        '''
+        The mystery object returned by evaluating the callee has a call()
+        method. Quote: all that remains is to perform the call. We do that by
+        casting the callee to a LoxCallable and then invoking a call() method
+        on it. The Java representation of any Lox object that can be called
+        like a function will implement this interface."
+
+            LoxCallable function = (LoxCallable)callee;
+
+        Which makes no sense since two sentences back, he said the callee
+        value is "typically just an identifier". How does an identifier
+        suddenly sprout methods, let alone call()?
+
+        Java "casting" is clearly more powerful than the casting I grew up
+        with in C. In C, you can "cast" something but that just means,
+        "compiler, regard this piece of memory as having a certain type." It
+        doesn't actually *change* the bits; it just changes the compiler's
+        view of them. But here, apparently, saying something is a LoxCallable
+        makes it *into* a LoxCallable with appropriate attributes?
+
+        For the moment I am going to assume there is some magic I can perform
+        that will a value into a callable. Hopefully later I will figure out how
+        to translate Java interfaces into Python.
+        '''
+        callable = Lox_Callable_Maker(callee,args)
+        if callable.arity() != len(params):
+            raise Interpreter.EvaluationError(client.paren,
+                    f"Expected {callable.arity()} arguments but got {len(params)}." )
+
+        return callable.call(params)
+
+
+    '''
+    E7. Evaluate a Binary expression.
 
     Get the left and right values, then do the thing. A special case is that
     + is overloaded to be a string concatenator.
