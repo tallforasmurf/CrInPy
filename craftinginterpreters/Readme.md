@@ -565,11 +565,11 @@ Note the break is nested in a block nested in an if. But the nested scopes of th
 
 So that was a nice Sunday afternoon exercise.
 
-# Chapter 10, Functions
+## Chapter 10, Functions
 
 Glad to be getting to this. But I immediately have some questions.
 
-## Function Syntax: "7()" a call?
+### Function Syntax: "7()" a call?
 
 First order of business, as in prior chapters, is to define the syntax of a function call, which has rather a high priority. In the expression grammar he sets up
 
@@ -591,7 +591,7 @@ Which means that by this grammar, `7(foo)` and `"hello"(foo)` and `false(foo)` a
 
 I'm filing an issue at the book on github, even though I know that lots of other people have been filing issues since 2017 and nobody has commented on this. I'll probably get chastened.
 
-## Loopy loop
+### Loopy loop
 
 For a while I thought Java was going to have a leg up on Python in the loop department, and it may, but not this time. I was looking at his Java for processing function arguments:
 
@@ -627,7 +627,7 @@ In either case we stop with an error message, but the error is detected at diffe
 
 Just a little mental "fuzzing" gives several things to try: `fun(,)` for example.
 
-## Java Jive (Section 10.1.1ff)
+### Java Jive (Section 10.1.1ff)
 
 Once again I find myself at odds with Nystrom's pedagogy. He has a big swathe of complex code worked out and is now trying to dole it out in small comprehensible bits. Unfortunately it doesn't break down that way; there's a lot of stuff you need to know, before you can understand the starting pieces. Wait, example.
 
@@ -691,9 +691,65 @@ So **why the flak are we trying implement calls when we don't know what function
 
 Upside-down pedagogy. I absolutely do not agree with this order of presentation.
 
+### Moron Callables
 
+So coming back to this today, I thought well, I'll get a leg up by defining a simple meta-class for Callables, something similar to his LoxCallable "interface" code, which would be basically,
+```
+class LoxCallable():
+    def arity(self):
+        raise NotImplementedError()
+    def call(self):
+        raise NotImplementedError()
+```
+which is what I did for the two "visitor" classes, `visitExpr` and `visitStmt`, both of which are implemented by the Interpreter class.
 
+Then I thought, fine, what would a concrete Callable item, say Function, look like? Why it would have as properties the parts of a function, its name, list of argument-names, and presumably a compiled Stmt for its body. And *then* I noticed that we already have defined this in the Stmt module,
+```
+class Function(Stmt):
+    def __init__(self, name:Token,params:List[Token],body:List[Stmt] ):
+        # initialize attributes
+        self.name = name
+        self.params = params
+        self.body = body
+    def accept(self, visitor:object):
+        return visitor.visitFunction(self)
+```
+That (which came from aping the existing Java code) is presumably what would be output by the Parser, after parsing a function declaration. And it's ready for the Interpreter to visit it for execution. Something's not right. OK, *sigh*, I will start reading again.
 
+### Interface-off
+
+Things get no better. Now he implements a simple built-in function `clock()` by adding the following code to the Interpreter class (section 10.2.1),
+```
+    globals.define("clock", new LoxCallable() {            
+      @Override                                            
+      public int arity() { return 0; }
+      @Override                                            
+      public Object call(Interpreter interpreter,          
+                         List<Object> arguments) {         
+        return (double)System.currentTimeMillis() / 1000.0;
+      }                                                    
+      @Override                                            
+      public String toString() { return "<native fn>"; }   
+    });                                                    
+```
+and says it "is a Java anonymous class that implements LoxCallable." So this presents some problems for the non-Javanese: is there another language that allows nonce implementations of anonymous classes? The whole book *Crafting Interpreters* should have a big red notice on the front, "Non-Javanistas need not apply". Well, I can mostly grok what he's doing. Suppose I had that meta-class I showed a few paragraphs back. Then I could do this exact reproduction,
+```
+class builtinClock(LoxCallable):
+  import time
+  def arity(self): return 0
+  def call(self, interpreter:Interpreter, args:List[object])->float:
+    return time.time()
+  def __str__(self): return "native fn 'time'"
+```
+although I could not put it in the context of a call to `globals.define()` because in Python, a class declaration is a statement, not an expression -- as apparently it can be in Java?
+
+Several questions remain, more dangling loose threads that this student finds so frustrating about Nystrom's teaching:
+
+* What the *heck* is the relationship between the `Stmt.Function` class, and the `LoxCallable` class? Obviously at some point the statement, representing the declaration of a function, has to get turned into something that can be called. Darned if I can imagine when; anyway, why isn't it that already?
+
+* What is that argument `interpreter` in the `call()` method? Will the Interpreter, when executing a function call, pass itself in? Why doesn't it just *execute* the thing?
+
+Meanwhile, I'm going to do the above: add a module `LoxCallable.py`, import it into the Interpreter module, declare the `builtinClock` class inside the Interpreter class, and assign an instance of it to the global environment during startup.
 
 
 
