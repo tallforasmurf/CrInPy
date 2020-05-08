@@ -153,14 +153,18 @@ class Parser:
             self.advance();
     '''
     Statement parsing! For reference, this is the statement grammar as of
-    Chapter 9:
+    Chapter 9, revised in 10.3.
 
         program           → declaration* EOF
 
-        declaration       → var_declare
+        declaration       → fun_declare
+                          |var_declare
                           | statement
                           # etc TBS
 
+        fun_declare       → 'fun' function
+        function          → IDENTIFIER "(" parameters? ")" block
+        parameters        → IDENTIFIER ( "," IDENTIFIER )*
         var_declare       → 'var' IDENTIFIER (= expression)? ';'
 
         statement         → expr_statement
@@ -181,14 +185,18 @@ class Parser:
         # etc TBS
     '''
     '''
-    S0. Top of the grammar: Declaration statements.
+    S0. Top of the grammar: Declaration statements. Make a quick check for
+        the three keywords, which are the minority of statements, to move
+        on to regular statements.
     '''
     def declaration(self, in_loop=False) -> Stmt.Stmt:
         try:
             if not self.peek().type in Parser.declarators:
                 # it isn't VAR etc, so get normal statement
                 return self.statement(in_loop=in_loop)
-            # statement is one of the declarators,
+            # statement is one of the declarators, which?
+            if self.match(FUN): # consume FUN token,
+                return self.function("function") # process the rest
             if self.match(VAR):
                 return self.var_stmt()
             # other declaration keywords TBS
@@ -227,7 +235,31 @@ class Parser:
         self.consume(RIGHT_BRACE, "Expect '}' after block.")
         return stmts
     '''
-    SD1. Var statement. Doesn't nest, so doesn't care about in_loop.
+    SD1. Process a function declaration, either "function" or "method".
+    '''
+    def function(self, expected:str)->Stmt.Function:
+        name = self.consume(IDENTIFIER, f"Expect {expected} name")
+        self.consume(LEFT_PAREN, f"Expect '(' after {expected} name")
+        parameters = []
+        while not self.check(RIGHT_PAREN):
+            # next token is not ')' so s.b. a parameter name
+            if len(parameters) > Parser.Max_Args :
+                self.error(self.peek(),
+                    f"Cannot have more than {Parser.Max_Args} parameters.")
+            parameters.append(
+                self.consume(IDENTIFIER,"Expect parameter name")
+                )
+            if not self.match(COMMA):
+                break # not a comma, probably a ')' but exit loop regardless
+            # we did see a comma, continue the loop
+        self.consume(RIGHT_PAREN,"Expect ')' to close parameter list")
+        self.consume(LEFT_BRACE,
+                     f"Expect block statement as {expected} body" )
+        body = self.block() # block and not in a loop
+        return Stmt.Function(name,parameters,body)
+
+    '''
+    SD2. Var statement. Doesn't nest, so doesn't care about in_loop.
     '''
     def var_stmt(self) -> Stmt.Var:
         name = self.consume(IDENTIFIER, "Expect variable name.")
@@ -484,7 +516,7 @@ class Parser:
             operator = self.previous() # capture the !/-
             rhs = self.unary()
             return Expr.Unary(operator, rhs)
-        return self.primary()
+        return self.call()
     '''
     E7. process the call and other unaries.
         The loop allows for the case of get_fun_getter()()(arg) in which the

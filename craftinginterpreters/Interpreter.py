@@ -15,6 +15,9 @@ This work is licensed under a
   see http://creativecommons.org/licenses/by-nc/4.0/
 
 '''
+
+from __future__ import annotations # allow forward-reference to this class
+
 import Expr
 from ExprVisitorClass import ExprVisitor
 import Stmt
@@ -22,7 +25,7 @@ from StmtVisitorClass import StmtVisitor
 from Token import Token
 from TokenType import *
 from Environment import Environment
-from LoxCallable import LoxCallable
+from LoxCallable import LoxCallable, LoxFunction
 from typing import Callable, List
 
 '''
@@ -93,8 +96,9 @@ class Interpreter(ExprVisitor,StmtVisitor):
         the clock function.
         '''
         self.globals = Environment() # no ancestor, hence, global
+        self.globals.define(CONTINUE,True) # initialize magic loop variable
         self.globals.define('clock',Interpreter.builtinClock())
-        self.environment = self.global_env # initialize nested environments
+        self.environment = self.globals # initialize nested environments
 
     '''
     The entry point for program execution is the following, which receives a
@@ -184,6 +188,13 @@ class Interpreter(ExprVisitor,StmtVisitor):
         if client.initializer: # is not None,
             value = self.evaluate(client.initializer)
         self.environment.define( client.name.lexeme, value )
+    '''
+    SF. Function statement. To "execute" a function declaration is to
+        create a LoxCallable and bind it in the current environment.
+    '''
+    def visitFunction(self, client:Stmt.Function):
+        callable = LoxFunction(client)
+        self.environment.define(client.name.lexeme, callable)
     '''
     Sq. Execute a while statement. Set the CONTINUE flag True on entry.
         Stop executing if it becomes False (because a BREAK was executed).
@@ -324,53 +335,26 @@ class Interpreter(ExprVisitor,StmtVisitor):
     '''
     def visitCall(self, client:Expr.Call)->object:
         '''
-        Quote "First, we evaluate the expression for the callee. Typically,
-        this expression is just an identifier that looks up the function by
-        its name, but it could be anything."
+        Evaluate the expression for the callee. That should be an identifier
+        whose value in the current environment is a callable -- but it could
+        be anything. The Parser is not able to rule out things like 7(5) and
+        "hello"(mom). We have to do that here.
         '''
         callee = self.evaluate(client.callee)
-        '''
-        Paragraphs later, we decide to check it as having the so-far-undefined
-        type of LoxCallable.
-        '''
-        if not isinstance(callee, LoxCallable) : # which isn't defined yet
+        if not isinstance(callee, LoxCallable) :
             raise Interpreter.EvaluationError(client.paren,
                             "Only functions and classes can be called.")
-
-        ''' Evaluate the parameters left to right and save them '''
+        ''' Evaluate the argument expressions left to right and save them '''
         params = []
         for argument in client.arguments:
             params.append( self.evaluate(argument) )
         '''
-        The mystery object returned by evaluating the callee has a call()
-        method. Quote: all that remains is to perform the call. We do that by
-        casting the callee to a LoxCallable and then invoking a call() method
-        on it. The Java representation of any Lox object that can be called
-        like a function will implement this interface."
-
-            LoxCallable function = (LoxCallable)callee;
-
-        Which makes no sense since two sentences back, he said the callee
-        value is "typically just an identifier". How does an identifier
-        suddenly sprout methods, let alone call()?
-
-        Java "casting" is clearly more powerful than the casting I grew up
-        with in C. In C, you can "cast" something but that just means,
-        "compiler, regard this piece of memory as having a certain type." It
-        doesn't actually *change* the bits; it just changes the compiler's
-        view of them. But here, apparently, saying something is a LoxCallable
-        makes it *into* a LoxCallable with appropriate attributes?
-
-        For the moment I am going to assume there is some magic I can perform
-        that will a value into a callable. Hopefully later I will figure out how
-        to translate Java interfaces into Python.
+        Check that there is an equal number of args and params.
         '''
-        callable = Lox_Callable_Maker(callee,args)
-        if callable.arity() != len(params):
+        if callee.arity() != len(params):
             raise Interpreter.EvaluationError(client.paren,
-                    f"Expected {callable.arity()} arguments but got {len(params)}." )
-
-        return callable.call(params)
+                    f"Expected {callee.arity()} arguments but got {len(params)}." )
+        return callee.call(self,params)
 
 
     '''

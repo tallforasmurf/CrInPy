@@ -751,8 +751,33 @@ Several questions remain, more dangling loose threads that this student finds so
 
 Meanwhile, I'm going to do the above: add a module `LoxCallable.py`, import it into the Interpreter module, declare the `builtinClock` class inside the Interpreter class, and assign an instance of it to the global environment during startup.
 
+### Functional success (Section 10.3, 10.4)
 
+So he finally does introduce all the machinery. And the answer to my first question above *maybe* should have been obvious to me even without reading ahead.
 
+A program has declarative statements like, oh, I dunno, `fun` to declare a function, and imperative ones like expressions that invoke functions. Both kinds of statements get *executed*, in the sense of the Interpreter "visits" each type of statement in the list of `Stmt` objects that comprise a program.
+
+To "execute" a function statement, is to process the function invocation into a callable thing. In other words, when the Interpreter visits the (parsed form) of the statement
+
+    fun hello(who) { print "hello " + who; }
+
+that is when it takes the parts of that declaration, wraps them in a LoxCallable object, and (this is key) defines the function name in the current environment, as having the value of that object. So from that moment on in the program, the *name* `hello` has the value "callable object that contains the body of that function and its argument list".
+
+Later, the Interpreter encounters a statement like
+
+    hello("world");
+
+and looks up `hello` in the environment, finds a callable, and calls it.
+
+What I had forgotten and so was very puzzled about, was that the declaration is going to be "executed" just like any other statement, and to "execute" a declaration is to put its meaning in the environment.
+
+I'm still not positive why it is better to pass the interpreter itself, into the call, so it can be invoked to execute the function body. Nystrom is pretty high on it, though. Speaking of the actual call,
+
+> This handful of lines of code is one of the most fundamental, powerful pieces of our interpreter. 
+
+And invites us to meditate on that, which I will do.
+
+Anyway, I still deeply dislike the way he organized this chapter, although now that I have seen it all, the code makes sense. And my Python translation of it worked first time.
 
 
 
