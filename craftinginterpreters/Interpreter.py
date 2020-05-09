@@ -65,9 +65,9 @@ class Interpreter(ExprVisitor,StmtVisitor):
     Define the builtin clock() function as a class implementing LoxCallable.
     '''
     class builtinClock(LoxCallable):
-        import time
         def arity(self): return 0
         def call(self, interpreter:Interpreter, args:[object] )->float:
+            import time
             return time.time()
         def __str__(self): return "native function 'time'"
 
