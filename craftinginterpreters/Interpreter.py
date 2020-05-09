@@ -120,8 +120,11 @@ class Interpreter(ExprVisitor,StmtVisitor):
     value of the expression.
     '''
     def one_line_program(self, program:List[Stmt.Stmt])->object:
-        value = self.evaluate(program[0].expression)
-        return value
+        try:
+            value = self.evaluate(program[0].expression)
+            return value
+        except Interpreter.EvaluationError as EVE:
+            self.error_report(EVE.token, EVE.message)
 
     '''
     Utility functions
