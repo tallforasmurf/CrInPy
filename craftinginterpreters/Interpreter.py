@@ -189,11 +189,13 @@ class Interpreter(ExprVisitor,StmtVisitor):
             value = self.evaluate(client.initializer)
         self.environment.define( client.name.lexeme, value )
     '''
-    SF. Function statement. To "execute" a function declaration is to
-        create a LoxCallable and bind it in the current environment.
+    SF. Function statement. To "execute" a function declaration is to create
+    a LoxCallable and bind its name it in the current environment. A
+    reference to the current environment is also stored in the callable as
+    its "closure".
     '''
     def visitFunction(self, client:Stmt.Function):
-        callable = LoxFunction(client)
+        callable = LoxFunction(client, self.environment)
         self.environment.define(client.name.lexeme, callable)
     '''
     Sr. Execute a return statement. Get the value of its return expression
