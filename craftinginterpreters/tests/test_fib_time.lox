@@ -1,0 +1,24 @@
+// test fibonacci function with time measurements
+// refer to book section 10.5
+fun fibonacci(n) {
+  //invoke = invoke + 1;
+  if (n <= 1) return n;
+  return fibonacci(n-2) + fibonacci(n-1);
+  }
+print "Starting..." ;
+var t0 = clock();
+var t1 = clock();
+var tt = clock();
+//var invoke = 0;
+for( var i= 10; i <= 25; i = i+1 ) {
+  print i ;
+  //invoke = 0;
+  t0 = clock();
+  print fibonacci(i);
+  t1 = clock();
+  print t1 - t0 ;
+  // print invoke;
+  print "---------" ;
+}
+print "total" ;
+print clock() - tt ;
