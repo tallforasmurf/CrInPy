@@ -779,6 +779,64 @@ And invites us to meditate on that, which I will do.
 
 Anyway, I still deeply dislike the way he organized this chapter, although now that I have seen it all, the code makes sense. And my Python translation of it worked first time.
 
+### Sections 10.4 and 10.5
+
+Here we actually execute functions including implementation of `return`. It all goes together smoothly. The `return` statement, Nystrom notes, causes a function to stop, but it may come in deeply-nested code. How to unwind the interpreter's stack no matter what it's doing? Raise an exception. That's the answer in Java, and it maps smoothly into Python, although I have to think for a while as to where to define the custom exception. I put it in the LoxCallable module. With that, I run the fibonacci test case. Here's my version.
+```
+// test fibonacci function with time measurements
+// refer to book section 10.5
+fun fibonacci(n) {
+  if (n <= 1) return n;
+  return fibonacci(n-2) + fibonacci(n-1);
+  }
+print "Starting..." ;
+var t0 = clock();
+var t1 = clock();
+var tt = clock();
+for( var i= 10; i <= 25; i = i+1 ) {
+  print i ;
+  t0 = clock();
+  print fibonacci(i);
+  t1 = clock();
+  print t1 - t0 ;
+  print "---------" ;
+}
+print "total" ;
+print clock() - tt ;
+```
+As Nystrom notes, this is starting to look like a real  programming language. (But it really needs some way to put multiple expressions in a `print` statement!).
+
+Anyway, this is a heavy test of recursion. Here are the reported times for the last two iterations and the total:
+```
+24
+46368
+2.0661370754241943
+---------
+25
+75025
+3.4064881801605225
+---------
+total
+8.838949918746948
+```
+So `fib(25)` is taking 3.4 seconds of a fairly powerful CPU's time. But, I put an invocation counter into the fib function, adding just one statement:
+```
+fun fibonacci(n) {
+  invoke = invoke + 1;
+  if (n <= 1) return n;
+  return fibonacci(n-2) + fibonacci(n-1);
+  }
+```
+Here's the timing result for input 25:
+```
+25
+75025
+4.878959894180298
+242785
+```
+Adding an expression and an assignment to a global variable bumped the execution time from 3.4 to 4.9 seconds, a 44% increase. But now we know the `fibonacci()` function was invoked 242,785 times in that period. Going back to the 3.4 second time, that's 1.4e-5, or 140 microseconds per iteration. Not bad really, considering the dozens of Python statements being executed to implement each call. (Not to mention that each of the quarter-million calls ends with raising an exception to implement the `return`.)
+
+
 
 
 
