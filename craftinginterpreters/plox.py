@@ -126,7 +126,9 @@ def run_lox(lox_code:str, interpreter=None):
         of declarator, but a single expression. Get its value and print.
         '''
         value = interpreter.one_line_program(program)
-        print(value)
+        str_value = str(value)
+        if str_value.endswith('.0') : str_value = str_value[0:-2]
+        print(str_value)
     else:
         interpreter.interpret(program)
 
