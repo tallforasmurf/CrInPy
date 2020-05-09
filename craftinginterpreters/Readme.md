@@ -836,11 +836,53 @@ Here's the timing result for input 25:
 ```
 Adding an expression and an assignment to a global variable bumped the execution time from 3.4 to 4.9 seconds, a 44% increase. But now we know the `fibonacci()` function was invoked 242,785 times in that period. Going back to the 3.4 second time, that's 1.4e-5, or 140 microseconds per iteration. Not bad really, considering the dozens of Python statements being executed to implement each call. (Not to mention that each of the quarter-million calls ends with raising an exception to implement the `return`.)
 
+### Challenge 1
 
+Since the arity-check between function signature and argument list is done on every call, the book says, it's a performance load. Smalltalk doesn't have the problem, why not?
 
+Is Smalltalk compiled? Clearly compiled languages make the check when *compiling* the call. In fact any language like Java and C++ would have to do that because they support "overloading" functions, choosing which version of a function to call, based on the match between the call arguments and the functions' different signatures.
 
+So the answer is, Smalltalk compiles (maybe to a byte-code?) before execution, and checks then?
 
+Checking the answers, it turns out that Smalltalk has a completely different syntax for function invocation which bypasses the problem.
 
+### Challenge 2
+
+Add anonymous function/lambda support. This is tricky because the syntax as built has a high fence between what are syntactically "statements" and "expressions". Expressions can appear at specified points within statements, e.g. "`print` *expression*`;`" but not the other way around.
+
+The code that parses an expression returns an instance of `Expr` which represents the top of what may be quite a deep tree of `Expr`s. The code that parses a statement returns an instance of `Stmt` which gets put in a linear list. 
+
+The declarators, `var`, `fun`, and eventually `class`, are statements. Now he is proposing to make the following simple example work:
+```
+  var foo = fun (x) { print x; } ;
+  foo(33) // prints 33
+  fun thrice(afun) { afun(1); afun(2); afun(3); }
+  thrice( foo ) // prints 1 then 2 then 3
+```
+The key is that "`fun (`*parms*`)`" needs to be treated as an *expression*. That raises two big issues.
+
+One, at Parse time, recognizing the two-token sequence `fun (` at a point where an expression is expected. And then do what? OK, one could factor out the latter 2/3 of function statement parsing and use it also from expression parsing. Create a new variant of `Expr`, say `Expr.Lambda` to store the parameter-name list and the body code.
+
+Two, execution time. When the Interpreter "visits" an `Expr.Lambda` it can create a `LoxFunction` instance, exactly as it does when visiting a function statement. The init method of `LoxFunction` would have to accept a missing (or `None` valued) function name. Otherwise it would be the same.
+
+So this is doable; I just don't want to do it right now.
+
+Checking the answers, yes, this just how to do it; with the addition that to allow a lambda at the head of a statement (an "expression statement") one needs to guard the function *statement* code with a two-token lookahead. If the sequence is FUN, IDENTIFIER, LEFT\_PAREN then it is a statement. Let the sequence FUN, LEFT\_PAREN pass on and it will be caught as an expression.
+
+### Challenge 3
+
+This challenge asks, what does this code do and is it valid? Actually I've extended the example from the challenge to make a point.
+```
+var a = 200;
+fun sr(a) { print a; var a = 99; print a; }
+sr(a); // prints 200, then 99
+print a; // prints 200
+```
+In other words, the names of function parameters are treated as local variables of the function, which is the same as Python, and I think that's fine.
+
+Now here's a strange thing. In the answers, he say "no it isn't (valid)". But it is, it works just fine. The local variable shadows the global. Then the assignment replaces the value of the parameter. That's fine with me. 
+
+He says the question is, is a function's parameters in a scope outer to its local variables, or the same as them? In Lox as written, they are in the same scope, the environment created by the call. But I don't see what difference it would make if parameters were in an outer scope. A parameter name would still be shadowed by a local declaration/assignment. The only way you could tell a difference would be, if we had an `undef` statement that removed a name from the local dictionary. Then you could "unshadow" the parameter and would be surprised if it didn't go back to its call-value. Since you can't, there's no functional difference whether a local var `a` *shadows* a parameter `a`, or simply *redefines* it.
 
 
 
