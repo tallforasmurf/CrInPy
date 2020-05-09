@@ -35,17 +35,21 @@ class LoxCallable():
 
 '''
 Implement a callable function based on a function statement.
+
+When an instance of LoxCallable is created (during execution of
+a "fun" declaration), the then
 '''
 
 class LoxFunction(LoxCallable):
-    def __init__(self, declaration:Stmt.Function):
+    def __init__(self, declaration:Stmt.Function, closure:Environment ):
         self.declaration = declaration
+        self.closure = closure
 
     def arity(self):
         return len(self.declaration.params)
 
     def call(self, interpreter, args:[object] ):
-        environment = Environment.Environment(interpreter.globals)
+        environment = Environment.Environment(self.closure)
         '''
         For each parameter name in the declaration, define that name
         in the environment as having the value from the call.
