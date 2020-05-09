@@ -160,29 +160,31 @@ class Parser:
         declaration       → fun_declare
                           |var_declare
                           | statement
-                          # etc TBS
 
         fun_declare       → 'fun' function
         function          → IDENTIFIER "(" parameters? ")" block
         parameters        → IDENTIFIER ( "," IDENTIFIER )*
         var_declare       → 'var' IDENTIFIER (= expression)? ';'
 
-        statement         → expr_statement
-                          | for_statement
+        statement         → for_statement
                           | if_statement
                           | print_statement
-                          | while statement
-                          | break statement
+                          | return_statement
+                          | while_statement
+                          | break_statement
                           | block
-        forStmt           → "for" "(" ( varDecl | exprStmt | ";" )
+                          | expr_statement
+
+        for_statement     → "for" "(" ( varDecl | exprStmt | ";" )
                             expression? ";"
                             expression? ")" statement
         if_statement      → "if" "(" expression ")" statement ( "else" statement )?
-        whileStmt         → "while" "(" expression ")" statement
-        block             → '{' declaration* '}'
-        expr_statement    → expression ';'
-        print_statement   → "print" expression ';'
-        # etc TBS
+        print_statement   → "print" expression ";"
+        return_statement  → "return" expression? ";"
+        while_statement   → "while" "(" expression ")" statement
+        break_statement   → "break" ";"
+        block             → "{" declaration* "}"
+        expr_statement    → expression ";"
     '''
     '''
     S0. Top of the grammar: Declaration statements. Make a quick check for
@@ -216,6 +218,8 @@ class Parser:
             return self.if_stmt(in_loop=in_loop)
         if self.match(PRINT):
             return self.print_stmt()
+        if self.match(RETURN):
+            return self.return_stmt()
         if self.match(WHILE):
             return self.while_stmt(in_loop=in_loop)
         if self.match(BREAK):
@@ -354,6 +358,18 @@ class Parser:
         expr = self.expression()
         self.consume(SEMICOLON, "Expect ';' after value.")
         return Stmt.Print(expr)
+    '''
+    SSr. Return statement. Doesn't nest. Expression is optional,
+         but semicolon is not.
+    '''
+    def return_stmt(self)->Stmt.Return:
+        keyword = self.previous() # save for Stmt
+        value = Expr.Literal(None) # default return value
+        if not self.check(SEMICOLON):
+            value = self.expression()
+        self.consume(SEMICOLON,"Expect semicolon after 'return'")
+        return Stmt.Return(keyword, value)
+
     '''
     SS3. While statement.
     '''

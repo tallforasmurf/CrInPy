@@ -19,6 +19,14 @@ at runtime.
 import Stmt
 import Environment
 
+'''
+Define our RETURN exception for quick unwinding from a return statement.
+See Interpreter.visitReturn() and LoxFunction.call() for use.
+'''
+class ReturnUnwinder(Exception):
+    def __init__(self,return_value:object):
+        self.return_value = return_value
+
 class LoxCallable():
     def arity(self):
         raise NotImplementedError()
@@ -27,10 +35,6 @@ class LoxCallable():
 
 '''
 Implement a callable function based on a function statement.
-
-The arity is checked before the call() method is invoked, hence
-we know the arg list and param list are the same length. Use the
-Python builtin function zip() to avoid a boring count loop.
 '''
 
 class LoxFunction(LoxCallable):
@@ -42,9 +46,28 @@ class LoxFunction(LoxCallable):
 
     def call(self, interpreter, args:[object] ):
         environment = Environment.Environment(interpreter.globals)
+        '''
+        For each parameter name in the declaration, define that name
+        in the environment as having the value from the call.
+
+        The arity is checked before the call() method is invoked, hence we
+        know the arg list and param list are the same length. Use the Python
+        builtin function zip() to avoid a boring count loop.
+        '''
         for (param,arg) in zip(self.declaration.params,args):
             environment.define( param.lexeme, arg )
-        interpreter.execute_block(self.declaration.body, environment)
+        '''
+        With all parameters assigned their argument values, execute
+        the body of the function. If it executes a return statement,
+        catch the value from the exception; otherwise, use None.
+        '''
+        try:
+            interpreter.execute_block(self.declaration.body, environment)
+            return_value = None
+        except ReturnUnwinder as RW:
+            return_value = RW.return_value
+        return return_value
+
 
     def __str__(self)->str:
         return f"fun {self.declaration.name.lexeme}()"

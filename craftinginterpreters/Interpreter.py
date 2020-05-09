@@ -25,7 +25,7 @@ from StmtVisitorClass import StmtVisitor
 from Token import Token
 from TokenType import *
 from Environment import Environment
-from LoxCallable import LoxCallable, LoxFunction
+from LoxCallable import LoxCallable, LoxFunction, ReturnUnwinder
 from typing import Callable, List
 
 '''
@@ -53,8 +53,8 @@ class Interpreter(ExprVisitor,StmtVisitor):
         }
 
     '''
-    Define our own exception class which contains a token from which the line
-    number can be gotten, and a specific message.
+    Define our own error exception class which contains a token from which
+    the line number can be gotten, and a specific message.
     '''
     class EvaluationError(Exception):
         def __init__(self, token:Token, message:str):
@@ -195,6 +195,13 @@ class Interpreter(ExprVisitor,StmtVisitor):
     def visitFunction(self, client:Stmt.Function):
         callable = LoxFunction(client)
         self.environment.define(client.name.lexeme, callable)
+    '''
+    Sr. Execute a return statement. Get the value of its return expression
+        (it has one, perhaps only a literal None). Then raise the exception.
+    '''
+    def visitReturn(self, client:Stmt.Return)->object:
+        return_value = self.evaluate(client.value)
+        raise ReturnUnwinder(return_value)
     '''
     Sq. Execute a while statement. Set the CONTINUE flag True on entry.
         Stop executing if it becomes False (because a BREAK was executed).
