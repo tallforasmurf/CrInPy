@@ -2,7 +2,7 @@
 
 The StmtVisitor class: define the skeleton for any
 "visitor" that wants to scan the members of a syntax tree.
-See also: StmtVisitor.
+See also: ExprVisitorClass, GenericVisitor.
 
 This work is licensed under a
   Creative Commons Attribution-NonCommercial 4.0 International License
