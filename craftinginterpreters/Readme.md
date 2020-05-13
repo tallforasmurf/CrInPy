@@ -919,3 +919,69 @@ Then a parsed and "resolved" program could be processed in other ways (he mentio
 
 So I think this was a missed opportunity.
 
+### Chapter 11, Challenge 3
+
+I'm skipping challenges 1 & 2. Three is "Extend the resolver to report an error if a local variable is never used." At first this sounds easy: at the end, check that every variable ever defined, has been "resolved" (put in the Interpreter's map). But that's wrong because of scopes. Example 1:
+```
+fun x() {
+  var a;
+  // blah blah
+  return a+1; // used
+  }
+fun y() {
+  var a;
+  // blah blah
+  return; // a never used
+  }
+```
+Example 2:
+```
+fun out(){
+  var a;
+  fun innie() {
+    var a
+    //etc
+    return a+1; // this a is used
+    }
+  return; // this a is not used
+  }
+```
+The question isn't "did a var `a` ever get used?" The question is "did the var `a` declared *in this scope* get used *in this scope*?" In example 2, the var declared in the inner function is used in its scope, and should not be diagnosed as unused; but the var declared in the outer function is not used and should be diagnosed.
+
+And the killer, Example 3:
+```
+fun out2(){
+  var a;
+  fun in2() {
+    a = 17; // that outer a is used
+    }
+  // or is it?
+  }
+```
+In example 3, we find the real question is, "did the var `a` declared in this scope get used in this *or an enclosed* scope?" The var declared in the outer function gets referenced in the inner function, so at least *lexically* it is "used". But if the outer function never *calls* the inner function, the var never *actually* gets used. Is that an error?
+
+The resolver could check that every function is mentioned in a call-expression... no. No. Let's just focus on, can we tell if a var is referenced (that's what "use" has to mean) in the scope where it is declared or an enclosed scope.
+
+The key to this is clearly the function `resolveLocal()`,
+```
+    def resolveLocal(self, expr:Expr.Expr, name:Token.Token):
+        for index in list(reversed(range(len(self.scopes)))):
+            if name.lexeme in self.scopes[index]:
+                self.interpreter.resolve(expr, len(self.scopes)-1-index)
+                return
+```
+It is called whenever an expression refers to or assigns to a variable. The name is found at whatever scope level it is at, and the map in the interpreter is updated for this reference expression. This is the place to note that a name has been used.
+
+Each "scope" is just a dict that maps name-strings to a boolean, False or True depending on whether the name has been "defined", a flag that only serves to catch the error of a name being used in its own initialization (`var a = 2+a`). The scope dict could accomodate a third state, "used". As long as that value is "truthy" it won't interfere with the other use.
+
+So `resolveLocal()` we could do an assignment,
+
+    self.scopes[index][name.lexeme]='USED'
+
+(or any other non-boolean value). Then in the currently very simple method `endScope()` where we just discard the current scope, we can instead scan the scope for any variable that hasn't been used, and report it.
+
+One more issue is that an error message if possible should give the user some location, a line number perhaps. How to do that? We call `endScope()` only at the end of processing a list of statements (a block or a function body). No line number available then. But there is a line number available at the point where a variable is declared. The name-token that is part of the `Stmt.Var` object has a line number. Suppose that instead of mapping a name to `True` when it is defined in the scope, we map it to its declaration line number. That's a truthy value. And then, when we find a *use* of a variable, we set its scope value to, oh, `-1` which is also truthy, but not a valid line number.
+
+Now when we end a scope, we can go through the names declared in that scope, and any name that has its positive line number, was never used, and can be diagnosed as such.
+
+OK, I implemented it. Not counting commentary, it was a total of 5 lines of code added. Nice.
