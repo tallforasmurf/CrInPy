@@ -985,3 +985,7 @@ One more issue is that an error message if possible should give the user some lo
 Now when we end a scope, we can go through the names declared in that scope, and any name that has its positive line number, was never used, and can be diagnosed as such.
 
 OK, I implemented it. Not counting commentary, it was a total of 5 lines of code added. Nice.
+
+### Challenge 4
+
+I don't understand what he's on about with this. It looks as if he's trying to patch the high execution time cost of looking up variable references in the resolve map. But that could all be eliminated by just storing the resolution depth directly in the `Expr` as discussed above, so I'm skipping this one.
