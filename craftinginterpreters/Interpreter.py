@@ -26,7 +26,7 @@ from Token import Token
 from TokenType import *
 from Environment import Environment
 from LoxCallable import LoxCallable, LoxFunction, ReturnUnwinder
-from typing import Callable, List
+from typing import Callable, List, Mapping
 
 '''
 This global is the variable name string used by WHILE, BLOCK and BREAK to
@@ -72,7 +72,7 @@ class Interpreter(ExprVisitor,StmtVisitor):
         def __str__(self): return "native function 'time'"
 
     '''
-    Initialize a new Interpreter instance.
+    ## Initialize a new Interpreter instance.
 
     As with the Scanner and Parser classes, Nystrom expects to report errors
     by calling directly to an error display function in the Lox main class.
@@ -95,10 +95,30 @@ class Interpreter(ExprVisitor,StmtVisitor):
         Create the globals environment and initialize it with an instance of
         the clock function.
         '''
-        self.globals = Environment() # no ancestor, hence, global
+        self.globals = Environment() # Environment
         self.globals.define(CONTINUE,True) # initialize magic loop variable
         self.globals.define('clock',Interpreter.builtinClock())
         self.environment = self.globals # initialize nested environments
+        '''
+        Define the "locals" as a dict. This is initialized by the Resolver so
+        that each variable reference is associated with its access-depth: how many
+        levels up the chain of enclosing environments to look for it. Refer
+        to Chapter 11 and Resolver.py, and see the resolve() method below.
+
+        The keys of the dict are not simple identifiers, but Expr instances.
+        Each separate reference to an identifier is represented in the parsed
+        program by an Expr.Variable or Expr.Assign which is a unique object.
+        Thus there is no fear of name-collisions in the mapping; and each
+        reference is related to its access-depth at the syntactic point it
+        was found.
+        '''
+        self.locals = dict() # Mapping[Expr,int]
+
+    '''
+    Entry point called from the Resolver to store an item in the locals.
+    '''
+    def resolve(self, reference:Expr.Expr, depth:int):
+        self.locals[reference]=depth
 
     '''
     The entry point for program execution is the following, which receives a
@@ -306,29 +326,48 @@ class Interpreter(ExprVisitor,StmtVisitor):
     def visitGrouping(self, client:Expr.Grouping)->object:
         return self.evaluate(client.expression)
     '''
-    E3. Evaluate a variable reference: fetch its value from the
-        global environment. If it isn't there, convert the NameError
-        from Environment, into our EvaluationError.
+    E3. Evaluate a variable reference.
+
+        First, get its depth from the locals map. If that returns None, the
+        reference is not to a local; ergo it is a global, so try to fetch it.
+        That might result in a name error, which we trap and convert into an
+        EvaluationError.
+
+        When it is a local being referenced, use the environment getAt()
+        method to fetch its value from the appropriate depth. Since it must
+        be defined or the Resolver would not have put it in the locals map,
+        that fetch should always work.
+
+        Nystrom breaks the guts of this out to a separate method. I didn't;
+        should I have?
     '''
     def visitVariable(self, client:Expr.Variable)->object:
-        try:
-            return self.environment.get(client.name)
-        except NameError as NE:
-            # the value in BaseException.args is a tuple, (namestring,None)
-            # for the message, extract the string alone.
-            raise Interpreter.EvaluationError(client.name,f"Undefined name {NE.args[0]}")
+        # find this Expr as a key in locals
+        depth = self.locals.get(client)
+        if depth is None:
+            try:
+                return self.globals.get(client.name)
+            except NameError as NE:
+                # the value in BaseException.args is a tuple, (namestring,None)
+                # for the message, extract the string alone.
+                raise Interpreter.EvaluationError(client.name,f"Undefined name {NE.args[0]}")
+        # it is local, fetch it at its proper depth.
+        return self.environment.getAt(depth, client.name)
+
     '''
-    E4. Evaluate an assignment expression, foo=bar. Like the above, this can
-        raise NameError.
+    E4. Evaluate an assignment expression, foo=bar. Name resolution as in the above.
     '''
     def visitAssign(self, client:Expr.Assign)->object:
         value = self.evaluate(client.value)
-        try:
-            self.environment.assign(client.name,value)
-            return value
-        except NameError as NE:
-            raise Interpreter.EvaluationError(client.name,f"Undefined name {NE.args[0]}")
-
+        depth = self.locals.get(client)
+        if depth is None:
+            try:
+                self.globals.assign(client.name,value)
+                return value
+            except NameError as NE:
+                raise Interpreter.EvaluationError(client.name,f"Undefined name {NE.args[0]}")
+        # it is known as a local, so assignment should work.
+        return self.environment.assignAt(depth,client.name,value)
     '''
     E5. Evaluate a Unary expression, -x or !x.
     '''

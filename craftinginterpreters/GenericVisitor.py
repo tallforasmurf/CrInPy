@@ -14,6 +14,8 @@ This work is licensed under a
   see http://creativecommons.org/licenses/by-nc/4.0/
 
 '''
+import Expr
+import Stmt
 from ExprVisitorClass import ExprVisitor
 from StmtVisitorClass import StmtVisitor
 

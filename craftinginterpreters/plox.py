@@ -19,6 +19,7 @@ from TokenType import *
 import Stmt
 from AstPrinter import AstPrinter
 from Interpreter import Interpreter
+from Resolver import Resolver
 
 # Syntax/parsing error detection flag. See book, sect. 4.1.1
 #   set: report() run_prompt()
@@ -71,14 +72,26 @@ def run_prompt():
     Pass each line to run_lox for execution. After running the line, clear
     the global HAD_ERROR.
 
-    Must make the Interpreter instance here, so as to preserve its Environment
-    across separate calls.
-
     Challenge 8#1: allow single-entry expressions with results display, "desk
     calculator mode" operation. Since with Chapter 8, the Parser and
     Interpreter are completely organized around statements, it is not
     possible to feed a bare expression; it has to be an "expression
     statement" ending in a semicolon. Help the user by supplying that.
+
+    Must make the Interpreter instance here, so as to preserve its Environment
+    across separate calls. Then the interactive user can enter "var x=5;"
+    on one line, and "x/3;" on the next line.
+
+    This brings up a problem with the resolver, if the user enters long lines
+    with functions or blocks in them. Over multiple lines, the Resolver used
+    by run_lox will keep stuffing definitions into the interpreter's "locals"
+    map. That is ok, since each parsed Expr is unique, and as long as there
+    is a reference to an Expr (in the locals map) Python won't garbage
+    collect it, and so won't reuse its memory for a different Expr. Over a
+    sufficiently long interactive session, the locals map could get pretty
+    large, but heck, there's memory for thousands of them, millions. No
+    problem.
+
     '''
     interactive_interpreter = Interpreter(parse_error)
     while True:
@@ -88,7 +101,7 @@ def run_prompt():
             print("\nk thx byeee")
             sys.exit()
         except KeyboardInterrupt:
-            print()
+            print("\noof, gone")
             sys.exit()
         if not line_in.endswith(';') and not line_in.endswith('}'):
             line_in += ';'
@@ -117,6 +130,12 @@ def run_lox(lox_code:str, interpreter=None):
         interpreter = Interpreter(parse_error)
     '''
     Parsing reports no error, so program is now [Stmt...].
+    Perform variable name resolution; check for new errors.
+    '''
+    resolver = Resolver(interpreter,parse_error)
+    resolver.resolve(program)
+    if HAD_ERROR: return
+    '''
     Per challenge 8#1, separate the real programs from single expression
     statements and handle differently.
     '''
