@@ -35,6 +35,7 @@ from typing import List, Mapping, Callable
 import Expr
 import Stmt
 import Token
+from TokenType import *
 from enum import Enum
 
 '''
@@ -67,10 +68,28 @@ class Resolver(GenericVisitor):
         self.current_function = FunctionType.NOFUN
         self.scopes = list() # List[Mapping[str,bool]]
 
+    '''
+    Initiate a scope (a dict mapping names to usage) by pushing a new
+    dict on the scopes stack.
+    '''
     def beginScope(self):
         self.scopes.append(dict())
+    '''
+    Exit the current scope, but first, run through it and look for names
+    that might not have been referenced in this scope.
+    '''
     def endScope(self):
-        self.scopes.pop()
+        dying_scope = self.scopes.pop()
+        for (name, number) in dying_scope.items():
+            if number >= 1 :
+                '''
+                This name was never referenced. The error reporter expects
+                a name Token, not just a string, so re-create one.
+                '''
+                raise Resolver.ResolutionError(
+                    Token.Token(IDENTIFIER,name,None,number),
+                    f"Variable {name} never referenced in its scope"
+                    )
     '''
     ### Resolve (i.e. visit) each statement in a list of statements.
 
@@ -121,12 +140,13 @@ class Resolver(GenericVisitor):
                 "Variable with this name already declared in this scope.")
             scope[item.lexeme]=False
     '''
-    Add a name to the top scope on the stack (if any), with
-    value True meaning, initialized and valid to reference.
+    Add a name to the top scope on the stack (if any), with a non-False value
+    (its name's line number) meaning, initialized and valid to reference, but
+    not yet referenced. (Chapter 11 challenge 3)
     '''
     def define(self,item:Token.Token):
         if self.scopes : # we have an open scope
-            self.scopes[-1][item.lexeme]=True
+            self.scopes[-1][item.lexeme]=item.line
 
     '''
     ## Begin the visitations, with visits to statements.
@@ -163,11 +183,15 @@ class Resolver(GenericVisitor):
 
     The expr argument is Expr.Variable when called from visitVariable,
     Expr.Assign when called from visitAssign.
+
+    Set the value of the name in the scope dict to -1, indicating it has
+    been referenced or assigned in that scope (Chapter 11 challenge 3)
     '''
     def resolveLocal(self, expr:Expr.Expr, name:Token.Token):
         for index in list(reversed(range(len(self.scopes)))):
             if name.lexeme in self.scopes[index]:
                 self.interpreter.resolve(expr, len(self.scopes)-1-index)
+                self.scopes[index][name.lexeme] = -1 # not a line number
                 return
         # apparently it's a global?
     '''
