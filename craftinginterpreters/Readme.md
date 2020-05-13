@@ -834,7 +834,7 @@ Here's the timing result for input 25:
 4.878959894180298
 242785
 ```
-Adding an expression and an assignment to a global variable bumped the execution time from 3.4 to 4.9 seconds, a 44% increase. But now we know the `fibonacci()` function was invoked 242,785 times in that period. Going back to the 3.4 second time, that's 1.4e-5, or 140 microseconds per iteration. Not bad really, considering the dozens of Python statements being executed to implement each call. (Not to mention that each of the quarter-million calls ends with raising an exception to implement the `return`.)
+Adding an expression and an assignment to a global variable bumped the execution time from 3.4 to 4.9 seconds, a 44% increase. But now we know the `fibonacci()` function was invoked 242,785 times in that period. Going back to the 3.4 second time, that's 14 microseconds per iteration. Not bad really, considering the dozens of Python statements being executed to implement each call. Not to mention that each of the quarter-million calls ends with raising an exception to implement the `return`.
 
 ### Challenge 1
 
@@ -867,7 +867,7 @@ Two, execution time. When the Interpreter "visits" an `Expr.Lambda` it can creat
 
 So this is doable; I just don't want to do it right now.
 
-Checking the answers, yes, this just how to do it; with the addition that to allow a lambda at the head of a statement (an "expression statement") one needs to guard the function *statement* code with a two-token lookahead. If the sequence is FUN, IDENTIFIER, LEFT\_PAREN then it is a statement. Let the sequence FUN, LEFT\_PAREN pass on and it will be caught as an expression.
+Checking the answers, yes, this just how to do it; with the addition that to allow a lambda at the head of a statement (an "expression statement") one needs to guard the function *statement* code with a two-token lookahead. If the parser sees FUN it has to look ahead for IDENTIFIER, LEFT\_PAREN to know it has a statement. Let the sequence FUN, LEFT\_PAREN pass on and it will be caught as an expression. This would be the only time in the Lox syntax where a two-token lookahead is needed.
 
 ### Challenge 3
 
