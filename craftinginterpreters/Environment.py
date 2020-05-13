@@ -193,7 +193,7 @@ class Environment(dict):
     fixed permanently.
     '''
 
-    def ancestor(distance:int)->Environment:
+    def ancestor(self, distance:int)->Environment:
         return self.enclosing.ancestor(distance-1) if distance>0 else self
 
     '''
@@ -210,9 +210,9 @@ class Environment(dict):
     attribute which is a map. As I'm doing it, the Environment *is* the map.
     Thus, one less level of function indirection.
     '''
-    def getAt( distance:int, name:Token ) -> object:
+    def getAt(self, distance:int, name:Token ) -> object:
         return self.ancestor(distance).get(name)
 
-    def assignAt( distance:int, name:Token, value:object):
+    def assignAt(self, distance:int, name:Token, value:object):
         self.ancestor(distance).assign(name.lexeme, value)
 
