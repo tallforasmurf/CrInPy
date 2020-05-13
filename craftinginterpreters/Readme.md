@@ -885,4 +885,37 @@ Now here's a strange thing. In the answers, he say "no it isn't (valid)". But it
 He says the question is, is a function's parameters in a scope outer to its local variables, or the same as them? In Lox as written, they are in the same scope, the environment created by the call. But I don't see what difference it would make if parameters were in an outer scope. A parameter name would still be shadowed by a local declaration/assignment. The only way you could tell a difference would be, if we had an `undef` statement that removed a name from the local dictionary. Then you could "unshadow" the parameter and would be surprised if it didn't go back to its call-value. Since you can't, there's no functional difference whether a local var `a` *shadows* a parameter `a`, or simply *redefines* it.
 
 
+## Chapter 11
+
+Here we apply the visitor paradigm to inspect the parsed code and build a map showing from which "depth" in the nested environments, a name should be fetched. This enables "closures", references that are frozen into functions declared within another scope, like this:
+
+    var a = "glob"; { fun showA(){print a;} showA(); var a = "loc"; showA(); }
+
+On its second invocation, `showA()` should print "glob". And, after adding quite a bit of code including a completely new visitor, it does. The reference to `a` stored in the code body of the function `showA` "knows" that it wants the global `a` and happily ignores the local one.
+
+### Cleverness, also uniqueness of objects
+
+The implementation of this is clever in a way that Nystrom does not even dwell on, and he's not usually shy about mentioning such. Here's the issue.
+
+We want to store information about every *access* to a variable. Not much; just a number giving its "depth" in the nested environments. So, a simple key-value map is created. The mapped values are those depths, as ints. The keys are the references to variables. In a parsed program, a reference to a variable is represented as an `Expr.Variable` object. So the keys in the map are just references to those Expr objects. They contain the *name* of the variable being accessed, but the *name* is not the key in the map. If it were, we could only store one number per name; but a name may be used many times in a program, and possibly in a different context each time.
+
+So we create a map (in Python, a `dict`, but in Java it's a special `HashMap` class, same thing). Wherever in the parsed program there is an `Expr.Variable`, we put that and its then-current access depth in the map. When the Interpreter is executing the program, and has to execute an `Expr.Variable` -- which simply means, get its current value -- it checks the map to see how deep in the nested environments to look.
+
+Using the `Expr.Variable` instances as keys is kind of brilliant. Each stands for a particular reference to that variable; but each is a unique chunk of memory. No matter how many times the program refers to variable `foo`, every one is a unique thing, so there can't be any name collisions in the database.
+
+Well, I thought it was ingenious.
+
+### Still, we differ (Section 11.4)
+
+Not so ingenious, I thought, was that Nystrom chooses to store this map in the *Interpreter*, not with the *program*. Granted, at the point it's built, the "program" is just a list of `Stmt` objects. But the map is specific to, and uniquely descriptive of, that list of statements. It has nothing to do with the Interpreter. But he files it there. Which means, before a program is executed, we have to create an Interpreter instance so we can put the map in it. And then, that instance can only be used to execute that program.
+
+Nystrom addresses this issue very briefly in Section 11.4, but he only considers one other option. He says we could store the access-depth integer int the `Expr.Variable` instance itself. Hell, yeah! And if he were using Python he'd do just that, because you can stuff a new attribute into any object any time.
+
+He says "We could do that, but it would require mucking around with our syntax tree generator". I'm not quite sure what he means by that. There's the independent program that generates the declaration of the `Expr` class; that would have to be modified if we want to add another attribute slot to the `Expr.Variable` subclass. Or he could mean the Parser, which turns the program tokens into the syntax tree, but that wouldn't be affected if `Expr` had one more attribute.
+
+Storing the depth info right in the `Expr.Value` object makes the most sense, and imposes the least overhead on the interpreter at runtime. But there's another option. All you have to do is create a very simple new class, call it `Program`, that is simply a structure that holds (a) a list of statement objects and (b) that depth hash-map. Then the hash map would be associated with the code that it describes. The Program would be the input to any Interpreter, instead of a list of statements as now.
+
+Then a parsed and "resolved" program could be processed in other ways (he mentions the possibility of other kinds of visitations that could be done), with more and more info put into the Program to describe the code. Such a Program could be given to a different kind of Interpreter, for example the byte-code compiler that is coming up in a later chapter.
+
+So I think this was a missed opportunity.
 
