@@ -214,5 +214,5 @@ class Environment(dict):
         return self.ancestor(distance).get(name)
 
     def assignAt(self, distance:int, name:Token, value:object):
-        self.ancestor(distance).assign(name.lexeme, value)
+        self.ancestor(distance).assign(name, value)
 
