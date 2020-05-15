@@ -1,24 +1,45 @@
 // test fibonacci function with time measurements
 // refer to book section 10.5
+
+// Base version, called to get the nominal execution time
+
 fun fibonacci(n) {
-  //invoke = invoke + 1;
-  if (n <= 1) return n;
-  return fibonacci(n-2) + fibonacci(n-1);
-  }
-print "Starting..." ;
-var t0 = clock();
-var t1 = clock();
-var tt = clock();
-//var invoke = 0;
-for( var i= 10; i <= 25; i = i+1 ) {
-  print i ;
-  //invoke = 0;
-  t0 = clock();
-  print fibonacci(i);
-  t1 = clock();
-  print t1 - t0 ;
-  // print invoke;
-  print "---------" ;
+    if (n <= 1) return n;
+    return fibonacci(n-2) + fibonacci(n-1);
 }
-print "total" ;
-print clock() - tt ;
+
+// Invocation-counting version, called to get the invocation
+// count for a given n. Expects a relative global invoke_count.
+
+fun inv_fibonacci(n) {
+    invoke_count = invoke_count + 1;
+    if (n <= 1) return n;
+    return inv_fibonacci(n-2) + inv_fibonacci(n-1);
+}
+
+
+print "Starting..." ;
+
+// perform one test for value n
+var invoke_count = 0 ;
+
+fun test(n) {
+    print "---------------" ;
+    var t0 = clock() ;
+    var value = fibonacci(n) ;
+    var t1 = clock() ;
+    invoke_count = 0;
+    value = inv_fibonacci(n);
+    print n;
+    print value;
+    print t1 - t0;
+    print invoke_count;
+    print (t1 - t0)/invoke_count;
+}
+var ta = clock();
+for( var i= 10; i <= 25; i = i+1 ) {
+    test(i);
+}
+var tz = clock();
+print "total";
+print tz-ta;
