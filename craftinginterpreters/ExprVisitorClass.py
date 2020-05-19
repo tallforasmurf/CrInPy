@@ -31,7 +31,7 @@ class ExprVisitor:
     def visitSuper(self, client:Expr.Super)->object:
         raise NotImplementedError("No visitor defined for Expr.Super")
     def visitThis(self, client:Expr.This)->object:
-        raise NotImplementedError("No visitor defined for Expr.Unary")
+        raise NotImplementedError("No visitor defined for Expr.This")
     def visitUnary(self, client:Expr.Unary)->object:
         raise NotImplementedError("No visitor defined for Expr.Unary")
     def visitVariable(self, client:Expr.Variable)->object:

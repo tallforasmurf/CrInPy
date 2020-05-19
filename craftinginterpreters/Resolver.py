@@ -37,7 +37,7 @@ import Stmt
 import Token
 from TokenType import *
 from enum import Enum
-
+from LoxCallable import LoxClass
 '''
 Per section 11.5.1, create an enum for the type of function
 at this point in the tree walk.
@@ -45,6 +45,12 @@ at this point in the tree walk.
 class FunctionType(Enum):
     NOFUN = 0 # not "NONE" -- too many uses of that word
     FUNCTION = 1
+    METHOD = 2
+    INITIALIZER = 3
+class ClassType(Enum):
+    NOCLASS = 0 # again, not "NONE" in a Python context
+    CLASS = 1
+
 
 class Resolver(GenericVisitor):
 
@@ -66,6 +72,7 @@ class Resolver(GenericVisitor):
         self.interpreter = interpreter
         self.error_report = error_report
         self.current_function = FunctionType.NOFUN
+        self.current_class = ClassType.NOCLASS
         self.scopes = list() # List[Mapping[str,bool]]
 
     '''
@@ -81,7 +88,7 @@ class Resolver(GenericVisitor):
     def endScope(self):
         dying_scope = self.scopes.pop()
         for (name, number) in dying_scope.items():
-            if number >= 1 :
+            if number >= 1 and name != "this":
                 '''
                 This name was never referenced. The error reporter expects
                 a name Token, not just a string, so re-create one.
@@ -195,6 +202,26 @@ class Resolver(GenericVisitor):
                 return
         # apparently it's a global?
     '''
+    Visit a class declaration. At this point (section 12.1) we do little,
+    just define the name for reference (it is allowed to be local). As of
+    12.4 resolve the names of the methods also, with the METHOD flag,
+    and with "this" in the enclosing scope.
+    '''
+    def visitClass(self, client:Stmt.Class):
+        enclosing_class_type = self.current_class
+        self.current_class = ClassType.CLASS
+        self.declare(client.name)
+        self.define(client.name)
+        self.beginScope()
+        self.scopes[-1]["this"] = True
+        for method in client.methods:
+            self.resolveFunDecl(method,
+    FunctionType.INITIALIZER if method.name.lexeme == LoxClass.Init else FunctionType.METHOD
+    )
+        self.endScope()
+        self.current_class = enclosing_class_type
+
+    '''
     Visit a function declaration. Define the function's name immediately.
     Factor out the resolving of params and the body so it can be used for
     class methods later.
@@ -256,12 +283,12 @@ class Resolver(GenericVisitor):
         if self.current_function == FunctionType.NOFUN:
             raise Resolver.ResolutionError(client.keyword,
                     "Cannot return from top-level code.")
-        '''
-        Note that Nystrom's code checks for client.value==nil.
-        However my Parser code always puts an Expr in that field,
-        an Expr.Literal(None) by default.
-        '''
-        client.value.accept(self)
+        if self.current_function == FunctionType.INITIALIZER:
+            if client.value : # is not None, e.g. an Expr of some kind,
+                raise Resolver.ResolutionError(client.keyword,
+                    "Cannot return an explicit value from an initializer." )
+        if client.value : # is not None, as in "return ;"
+            client.value.accept(self)
     '''
     ### Expressions:
 
@@ -284,6 +311,9 @@ class Resolver(GenericVisitor):
         for argument in client.arguments:
             argument.accept(self)
 
+    def visitGet(self,client:Expr.Get):
+        client.object.accept(self)
+
     def visitBinary(self,client:Expr.Binary):
         client.left.accept(self)
         client.right.accept(self)
@@ -291,6 +321,16 @@ class Resolver(GenericVisitor):
     def visitLogical(self,client:Expr.Logical):
         client.left.accept(self)
         client.right.accept(self)
+
+    def visitSet(self,client:Expr.Set):
+        client.value.accept(self)
+        client.object.accept(self)
+
+    def visitThis(self,client:Expr.This):
+        if self.current_class == ClassType.NOCLASS:
+            raise Resolver.ResolutionError(client.keyword,
+                        "Cannot refer to 'this' outside of a class.")
+        self.resolveLocal(client,client.keyword)
 
     def visitUnary(self,client:Expr.Unary):
         client.right.accept(self)

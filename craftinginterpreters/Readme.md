@@ -14,6 +14,11 @@ License:<a rel="license" href="http://creativecommons.org/licenses/by-nc/4.0/"><
 
 (Modified into upside-down "blog" posting sequence, with latest sections at the top by chapter.)
 
+## Chapter 12
+
+Implementing class statements, methods, fields, initializers. I got annoyed early at the approach of adding bits of code, and "peeked". I opened up the Java code and translated a bunch of it. This caused me small problems because then as I read the text, and executed the examples, I was basically unit-testing my translated code. And of course I didn't do it all perfectly so I got to debug things. But that was entertaining in its way.
+
+I do wish, however, that the book included a test suite for each chapter: a file of code that should execute, or should fail in expected,documented ways. But of course that would be a big "ask" of the author. He'd have to implement a unit-test framework on top of everything else. Probably Java has a choice of well-known unit test frameworks. Python certainly has. Maybe I could look at... nah.
 
 ## Chapter 11
 

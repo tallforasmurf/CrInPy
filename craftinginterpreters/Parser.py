@@ -157,10 +157,12 @@ class Parser:
 
         program           → declaration* EOF
 
-        declaration       → fun_declare
-                          |var_declare
+        declaration       → class_declare
+                          | fun_declare
+                          | var_declare
                           | statement
 
+        class_declare     → "class" IDENTIFIER "{" function* "}"
         fun_declare       → 'fun' function
         function          → IDENTIFIER "(" parameters? ")" block
         parameters        → IDENTIFIER ( "," IDENTIFIER )*
@@ -197,11 +199,12 @@ class Parser:
                 # it isn't VAR etc, so get normal statement
                 return self.statement(in_loop=in_loop)
             # statement is one of the declarators, which?
+            if self.match(CLASS): # see and consume "class"
+                return self.class_decl() # process the rest
             if self.match(FUN): # consume FUN token,
                 return self.function("function") # process the rest
             if self.match(VAR):
                 return self.var_stmt()
-            # other declaration keywords TBS
             raise NotImplementedError
         except Parser.ParseError as PEX:
             self.error_report(PEX.error_token, PEX.error_message)
@@ -239,7 +242,20 @@ class Parser:
         self.consume(RIGHT_BRACE, "Expect '}' after block.")
         return stmts
     '''
-    SD1. Process a function declaration, either "function" or "method".
+    SDC. Absorb all of a class declaration.
+    '''
+    def class_decl(self):
+        name = self.consume(IDENTIFIER, "Expect class name.")
+        self.consume(LEFT_BRACE, "Expect '{' before class body.")
+        methods = []
+        while (not self.isAtEnd()) and (not self.check(RIGHT_BRACE)):
+            methods.append( self.function("method") )
+        self.consume(RIGHT_BRACE, "Expect '}' to close class declaration.")
+        return Stmt.Class(name,methods) # no superclass syntax yet
+
+    '''
+    SD1. Process a function declaration. Depending on context the
+         expected var is either "function" or "method".
     '''
     def function(self, expected:str)->Stmt.Function:
         name = self.consume(IDENTIFIER, f"Expect {expected} name")
@@ -360,11 +376,13 @@ class Parser:
         return Stmt.Print(expr)
     '''
     SSr. Return statement. Doesn't nest. Expression is optional,
-         but semicolon is not.
+         but semicolon is not. Note as in the book, if there is
+         no explicit expression, Expr.value is actually None, as
+         opposed to Expr.Literal with value None.
     '''
     def return_stmt(self)->Stmt.Return:
         keyword = self.previous() # save for Stmt
-        value = Expr.Literal(None) # default return value
+        value = None # default return value
         if not self.check(SEMICOLON):
             value = self.expression()
         self.consume(SEMICOLON,"Expect semicolon after 'return'")
@@ -399,11 +417,11 @@ class Parser:
     Expression parsing! For reference, this is the expression grammar to be
     parsed (as modified in section 8.4.1 to include assignment) (as modified
     in 9.3 to wrap "equality" inside the logical operators) (as modified in
-    10.1 to support function calls):
+    10.1 to support function calls) (as modified in 12.3 for properties):
 
     sequence       → expression ( , expression )*
     expression     → assignment ;
-    assignment     → IDENTIFIER "=" assignment
+    assignment     → (call "." )? IDENTIFIER "=" assignment
                    | logic_or
     logic_or       → logic_and ( "or" logic_and )*
     logic_and      → equality ( "and" equality )*
@@ -412,7 +430,7 @@ class Parser:
     addition       → multiplication ( ( "-" | "+" ) multiplication )*
     multiplication → unary ( ( "/" | "*" ) unary )*
     unary          → ( "!" | "-" ) unary | call
-    call           → primary ( "(" arguments? ")" )*
+    call           → primary ( "(" arguments? ")" | "." IDENTIFIER )*
     arguments      → expression ( "," expression )*
     primary        → NUMBER | STRING | IDENTIFIER | "false" | "true" | "nil"
                    | "(" expression ")"
@@ -448,17 +466,24 @@ class Parser:
         if not self.match(EQUAL):
             return possible_lhs
         '''
-        Now ask, We have something =, but is it variable =?
+        We have "something =" so note the location of the "=" for a possible
+        later error message; then collect the r-value.
+        Note the recursion; We take a = b = c as a = (b = c).
         '''
-        if not isinstance(possible_lhs, Expr.Variable):
-            # flag an error at the "=" token, which is previous
-            self.error(self.previous(), "Invalid target for assignment")
-        '''
-        We have variable = something, collect the r-value.
-        Notice the recursion? We take a = b = c as a = (b = c).
-        '''
+        error_pos = self.previous()
         rhs = self.assignment()
-        return Expr.Assign(possible_lhs.name, rhs)
+        '''
+        Now ask, We have something =, but is it variable = or property?
+        '''
+        if isinstance(possible_lhs, Expr.Variable):
+            return Expr.Assign(possible_lhs.name, rhs)
+        if isinstance(possible_lhs, Expr.Get):
+            return Expr.Set(possible_lhs.object, possible_lhs.name, rhs)
+        '''
+        Neither, flag an error at the "=" token noted earlier.
+        '''
+        self.error(error_pos, "Invalid target for assignment")
+
     '''
     E1a. Process logic-or.
     '''
@@ -534,17 +559,22 @@ class Parser:
             return Expr.Unary(operator, rhs)
         return self.call()
     '''
-    E7. process the call and other unaries.
-        The loop allows for the case of get_fun_getter()()(arg) in which the
-        first call yields a function that returns a function that takes
-        (arg). We are told the reason it isn't simply "while match(LEFT_PAREN)"
-        will become clear later.
+    E7. process the call, property-reference, and other unaries.
+        The loop allows for cases like
+            get_fun().meth()()(obj.field)
+        in which the first call yields a class instance whose
+        method meth() returns a function that yields a function
+        that takes the field value of obj.
     '''
     def call(self)->Expr.Expr:
         an_expr = self.primary()
         while True:
             if self.match(LEFT_PAREN):
                 an_expr = self.finish_call(an_expr)
+            elif self.match(DOT):
+                name = self.consume(IDENTIFIER,
+                            "Expect property name after '.'")
+                an_expr = Expr.Get(an_expr,name)
             else:
                 break
         return an_expr
@@ -580,6 +610,7 @@ class Parser:
         if self.match(FALSE): return Expr.Literal(False)
         if self.match(TRUE):  return Expr.Literal(True)
         if self.match(NIL):   return Expr.Literal(None)
+        if self.match(THIS):  return Expr.This(self.previous())
         # handle literal values
         if self.match(NUMBER,STRING):
             return Expr.Literal(self.previous().literal)

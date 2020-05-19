@@ -25,7 +25,7 @@ from StmtVisitorClass import StmtVisitor
 from Token import Token
 from TokenType import *
 from Environment import Environment
-from LoxCallable import LoxCallable, LoxFunction, ReturnUnwinder
+from LoxCallable import LoxCallable, LoxFunction, LoxClass, LoxInstance, ReturnUnwinder
 from typing import Callable, List, Mapping
 
 '''
@@ -212,6 +212,26 @@ class Interpreter(ExprVisitor,StmtVisitor):
             value = self.evaluate(client.initializer)
         self.environment.define( client.name.lexeme, value )
     '''
+    Sc. Class statement. As parsed, Stmt.Class has a name and a list
+        of methods as Stmt.Function objects. To "execute" the declaration
+        we create a new LoxClass instance and bind the name to it.
+
+    Note the two-step definition. Nystrom notes, this allows the class
+    definition to reference its own name. I am using Environment.store()
+    (which I added) because it takes a name string not a token.
+    '''
+    def visitClass(self, client:Stmt.Class):
+        name_str = client.name.lexeme
+        self.environment.define(name_str, None)
+        meth_dict = dict()
+        for method in client.methods:
+            meth_fun = LoxFunction(method,self.environment,
+                                   method.name.lexeme == LoxClass.Init)
+            meth_dict[method.name.lexeme]=meth_fun
+        klass = LoxClass(name_str,meth_dict)
+        self.environment.store(name_str,klass)
+
+    '''
     SF. Function statement. To "execute" a function declaration is to create
     a LoxCallable and bind its name it in the current environment. A
     reference to the current environment is also stored in the callable as
@@ -222,10 +242,12 @@ class Interpreter(ExprVisitor,StmtVisitor):
         self.environment.define(client.name.lexeme, callable)
     '''
     Sr. Execute a return statement. Get the value of its return expression
-        (it has one, perhaps only a literal None). Then raise the exception.
+        if it has one. Then raise the exception.
     '''
     def visitReturn(self, client:Stmt.Return)->object:
-        return_value = self.evaluate(client.value)
+        return_value = None
+        if client.value : # is an expr not just None
+            return_value = self.evaluate(client.value)
         raise ReturnUnwinder(return_value)
     '''
     Sq. Execute a while statement. Set the CONTINUE flag True on entry.
@@ -339,20 +361,23 @@ class Interpreter(ExprVisitor,StmtVisitor):
         that fetch should always work.
 
         Nystrom breaks the guts of this out to a separate method. I didn't;
-        should I have?
+        should I have? Yes, so it could be shared with visitThis().
     '''
     def visitVariable(self, client:Expr.Variable)->object:
         # find this Expr as a key in locals
+        return self.lookUpVariable(client.name, client)
+
+    def lookUpVariable(self,name:Token, client):
         depth = self.locals.get(client)
         if depth is None:
             try:
-                return self.globals.get(client.name)
+                return self.globals.get(name)
             except NameError as NE:
                 # the value in BaseException.args is a tuple, (namestring,None)
                 # for the message, extract the string alone.
                 raise Interpreter.EvaluationError(client.name,f"Undefined name {NE.args[0]}")
-        # it is local, fetch it at its proper depth.
-        return self.environment.getAt(depth, client.name)
+        # it is local, can't be undefined, so fetch it at its proper depth.
+        return self.environment.getAt(depth, name)
 
     '''
     E4. Evaluate an assignment expression, foo=bar. Name resolution as in the above.
@@ -406,7 +431,49 @@ class Interpreter(ExprVisitor,StmtVisitor):
             raise Interpreter.EvaluationError(client.paren,
                     f"Expected {callee.arity()} arguments but got {len(params)}." )
         return callee.call(self,params)
+    '''
+    Eg1. Evaluate a property reference, <something>.identifier.
+        The <something> had better evaluate to a LoxInstance.
+        If so, return the result of its get() method for the name.
 
+        Problem: LoxInstance can't raise our EvaluationError. It can only
+        raise the standard NameError. We don't want the user to see that;
+        we want to show our custom error reporting. So the following does
+        a little dance: in except we set a flag that the NameError happened.
+        The try/except always completes; then we can raise the right
+        exception if necessary.
+    '''
+    def visitGet(self, client:Expr.Get)->object:
+        source = self.evaluate(client.object)
+        if isinstance(source,LoxInstance):
+            name_found = True
+            value = None # keep lint happy
+            try:
+                value = source.get(client.name)
+            except NameError:
+                name_found = False
+            if name_found :
+                return value
+            raise Interpreter.EvaluationError(
+                    client.name, f"Undefined property '{client.name.lexeme}'.")
+        else:
+            raise Interpreter.EvaluationError(
+                client.name, "Only instances have properties")
+    '''
+    Eg2. Evaluate a property assignment, which must be to a LoxInstance.
+        Return the assigned value.
+    '''
+    def visitSet(self, client:Expr.Set)->object:
+        target = self.evaluate(client.object)
+        if not isinstance(target,LoxInstance):
+            raise Interpreter.EvaluationError(
+                    client.name, f"Only instances may have fields" )
+        value = self.evaluate(client.value)
+        target.set(client.name,value)
+        return value
+
+    def visitThis(self, client:Expr.This)->object:
+        return self.lookUpVariable(client.keyword, client)
 
     '''
     E7. Evaluate a Binary expression.
