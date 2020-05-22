@@ -14,6 +14,18 @@ License:<a rel="license" href="http://creativecommons.org/licenses/by-nc/4.0/"><
 
 (Modified into upside-down "blog" posting sequence, with latest sections at the top by chapter.)
 
+## Chapter 13
+
+This chapter is a lot of tidying up and small changes to support superclasses and superclass reference syntax. I implemented it by basically looking at each code snippet, finding the corresponding place in my code, and inserting one or two statements.
+
+One bigger change, however. Some chapters back, Nystrom introduced what he (I think unfortunately) called the environment. I'd'a preferred almost anything else, symbol table, memory, core. It's the store for named values, and it is basically a set of nested dicts. I felt rather clever at implementing it as a subclass of the Python class `dict`. That should make it perform quite well, I imagine.
+
+The problem is, that some methods of Nystrom's `Environment` class took the key as an identifier Token, and in some cases took it as a string. I was puzzled by this earlier, but only today realized that he was relying on (explitive deleted) Java overloading, and was calling the same-named method with one type here, and the other type there.
+
+I dislike the whole idea of overloading for various reasons, but the main issue is that Python doesn't support it so I have to find a workaround. In other cases in the book, the workaround has been to use a Python optional argument with a default value. For example, earlier he creates a `LoxClass(name,method-list)` and later uses `LoxClass(name, superclass, method-list)`, relying on Java overloading to call the correct initializer based on the signature of the call.. My translation is to declare the `LoxClass` initializer as taking a name, a list of methods, and an optional superclass with default value None. Note that I had to re-order the arguments to make this work, as optional, positional, arguments have to come last.
+
+That wasn't going to work with the `get()` method of the Environment class. Should I split it into two methods, `get_str()` and `get_token()`? Ugly. No, I just ruled that all methods in the Environment API took strings, period. No more tokens. Found every use of one and made sure it was passing, not a Token, but a Token.lexeme, the string value of the identifier. Actually that improves performance when looking up a local. The original would extract the lexeme from the Token at each level of environment, so multiple references to the getter.
+
 ## Chapter 12
 
 Implementing class statements, methods, fields, initializers. I got annoyed early at the approach of adding bits of code, and "peeked". I opened up the Java code and translated a bunch of it. This caused me small problems because then as I read the text, and executed the examples, I was basically unit-testing my translated code. And of course I didn't do it all perfectly so I got to debug things. But that was entertaining in its way.
