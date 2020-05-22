@@ -45,20 +45,15 @@ get() from the Java implementation.
         Return the value of name from its closest (most local) definition.
         Raise NameError if not found.
 
-    get(name:Token)->object
+    get(name:str)->object
 
-        Return value of name.lexeme from its closest (most local) definition.
+        Return value of name from its closest (most local) definition.
         Raise NameError if not found. Uses fetch().
 
-    store(name:str, value:object)
+    assign(name:str, value:object)
 
-        Set name to value in the nearest environment where it is defined.
-        Raise NameError if name is not known.
-
-    assign(name:Token, value:object)
-
-        Set name.lexeme to value in the nearest environment where it is
-        defined. Raise NameError if it is not known. Uses store().
+        Set name to value in the nearest environment where it is
+        defined. Raise NameError if it is not known.
 
     ancestor(distance:int) -> Environment
 
@@ -67,15 +62,17 @@ get() from the Java implementation.
         None. If too high by >1, causes an error "'Nonetype' object has no
         attribute 'ancestor'".
 
-    assignAt( distance:int, name:Token, value:object)
+    assignAt( distance:int, name:str, value:object)
 
-        Assign value to Token.lexeme in the nth more global environment. Uses
+        Assign value to name in the nth more global environment. Uses
         ancestor() and assign().
 
-    getAt( distance:int, name:Token ) -> object
+    getAt( distance:int, name:str ) -> object
 
-        Return value of Token.lexeme from the nth more global environment.
-        Uses ancestor() and get().
+        Return value of name from the nth more global environment.
+        Uses ancestor() and get().  NOTE: Nystrom uses this sometimes with
+        a name Token argument, sometimes with a name string ("this" and "super").
+        Damn his Java overloads! I am declaring it always requires a string.
 
 ## Errors
 
@@ -114,7 +111,6 @@ not given an identifier it could be displaying...
 '''
 from __future__ import annotations # allow forward-reference to this class
 
-from Token import Token
 from typing import Optional
 
 class Environment(dict):
@@ -124,14 +120,9 @@ class Environment(dict):
     '''
     Return the value of a name, if it exists at this or an enclosing scope,
     otherwise raise NameError.
-
-    Code executing an expression comes to get() with a Token for the name.
-    Internal code, esp. visitWhile, comes to fetch() with a string name. Note
-    also that the recursion to the more global scope is done via fetch(),
-    saving a few .lexeme de-references when fetching a more global name.
     '''
-    def get(self, name:Token)->object:
-        return self.fetch(name.lexeme)
+    def get(self, name:str)->object:
+        return self.fetch(name)
 
     def fetch(self, name:str)->object:
         if self.__contains__(name):
@@ -144,13 +135,9 @@ class Environment(dict):
 
     '''
     Assign a value (any object) to a name, if the name is defined in this or
-    an enclosing scope, otherwise NameError. As with assign, we have two
-    levels, assign() to extract Token.lexeme, and store() to do the work.
+    an enclosing scope, otherwise NameError.
     '''
-    def assign(self, name:Token, value:object):
-        self.store(name.lexeme, value)
-
-    def store(self, name:str, value:object):
+    def assign(self, name:str, value:object):
         if self.__contains__(name):
             self.__setitem__(name,value)
         elif self.enclosing is not None:
@@ -161,10 +148,8 @@ class Environment(dict):
     '''
     Define (as in "var name = expr;") a value at this scope level.
 
-    Note that while get() and assign() receive the name in the form of a
-    Token, this method gets the name as a string. Note also that we do not
-    check whether the name has already been defined; see book section 8.3 for
-    that discussion.
+    Note that we do not check whether the name has already been defined; see
+    book section 8.3 for that discussion.
     '''
     def define(self, name:str, value:object):
         self.__setitem__(name,value)
@@ -210,9 +195,9 @@ class Environment(dict):
     attribute which is a map. As I'm doing it, the Environment *is* the map.
     Thus, one less level of function indirection.
     '''
-    def getAt(self, distance:int, name:Token ) -> object:
+    def getAt(self, distance:int, name:str ) -> object:
         return self.ancestor(distance).get(name)
 
-    def assignAt(self, distance:int, name:Token, value:object):
+    def assignAt(self, distance:int, name:str, value:object):
         self.ancestor(distance).assign(name, value)
 
