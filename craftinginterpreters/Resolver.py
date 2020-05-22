@@ -50,6 +50,7 @@ class FunctionType(Enum):
 class ClassType(Enum):
     NOCLASS = 0 # again, not "NONE" in a Python context
     CLASS = 1
+    SUBCLASS = 2
 
 
 class Resolver(GenericVisitor):
@@ -212,6 +213,15 @@ class Resolver(GenericVisitor):
         self.current_class = ClassType.CLASS
         self.declare(client.name)
         self.define(client.name)
+        if client.superclass : # is not None,
+            if client.name.lexeme == client.superclass.name.lexeme :
+                raise Resolver.ResolutionError(
+                    client.superclass.name,
+                    "A class cannot inherit from itself." )
+            self.current_class = ClassType.SUBCLASS
+            client.superclass.accept(self)
+            self.beginScope()
+            self.scopes[-1]["super"] = True
         self.beginScope()
         self.scopes[-1]["this"] = True
         for method in client.methods:
@@ -219,6 +229,8 @@ class Resolver(GenericVisitor):
     FunctionType.INITIALIZER if method.name.lexeme == LoxClass.Init else FunctionType.METHOD
     )
         self.endScope()
+        if client.superclass : # was given and accepted,
+            self.endScope() # close the extra "super" scope
         self.current_class = enclosing_class_type
 
     '''
@@ -325,6 +337,15 @@ class Resolver(GenericVisitor):
     def visitSet(self,client:Expr.Set):
         client.value.accept(self)
         client.object.accept(self)
+
+    def visitSuper(self, client:Expr.Super):
+        if self.current_class == ClassType.NOCLASS:
+            raise Resolver.ResolutionError(client.keyword,
+                        "Cannot use 'super' outside of a class." )
+        if self.current_class != ClassType.SUBCLASS:
+            raise Resolver.ResolutionError(client.keyword,
+                        "Cannot use 'super' in a class with no superclass")
+        self.resolveLocal(client,client.keyword)
 
     def visitThis(self,client:Expr.This):
         if self.current_class == ClassType.NOCLASS:

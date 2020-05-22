@@ -162,7 +162,8 @@ class Parser:
                           | var_declare
                           | statement
 
-        class_declare     → "class" IDENTIFIER "{" function* "}"
+        class_declare     → "class" IDENTIFIER ( "<" IDENTIFIER )?
+                          | "{" function* "}"
         fun_declare       → 'fun' function
         function          → IDENTIFIER "(" parameters? ")" block
         parameters        → IDENTIFIER ( "," IDENTIFIER )*
@@ -246,12 +247,16 @@ class Parser:
     '''
     def class_decl(self):
         name = self.consume(IDENTIFIER, "Expect class name.")
+        superclass = None
+        if self.match(LESS) :
+            self.consume(IDENTIFIER, "Expect superclass name.")
+            superclass = Expr.Variable(self.previous())
         self.consume(LEFT_BRACE, "Expect '{' before class body.")
         methods = []
         while (not self.isAtEnd()) and (not self.check(RIGHT_BRACE)):
             methods.append( self.function("method") )
         self.consume(RIGHT_BRACE, "Expect '}' to close class declaration.")
-        return Stmt.Class(name,methods) # no superclass syntax yet
+        return Stmt.Class(name,methods,superclass)
 
     '''
     SD1. Process a function declaration. Depending on context the
@@ -432,8 +437,10 @@ class Parser:
     unary          → ( "!" | "-" ) unary | call
     call           → primary ( "(" arguments? ")" | "." IDENTIFIER )*
     arguments      → expression ( "," expression )*
-    primary        → NUMBER | STRING | IDENTIFIER | "false" | "true" | "nil"
+    primary        → "true" | "false" | "nil" | "this"
+                   | NUMBER | STRING | IDENTIFIER |
                    | "(" expression ")"
+                   | "super" "." IDENTIFIER
 
     E0. Process a sequence of expressions, Challenge 1.
        My approach is, when comma is present, to make a binary Expr with
@@ -611,6 +618,12 @@ class Parser:
         if self.match(TRUE):  return Expr.Literal(True)
         if self.match(NIL):   return Expr.Literal(None)
         if self.match(THIS):  return Expr.This(self.previous())
+        if self.match(SUPER):
+            keyword = self.previous() # save "super" token
+            self.consume(DOT, "Expect '.' after 'super'")
+            method_name = self.consume(IDENTIFIER,
+                            "Expect superclass method name.")
+            return Expr.Super(keyword,method_name)
         # handle literal values
         if self.match(NUMBER,STRING):
             return Expr.Literal(self.previous().literal)

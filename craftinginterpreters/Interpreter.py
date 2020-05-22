@@ -217,19 +217,30 @@ class Interpreter(ExprVisitor,StmtVisitor):
         we create a new LoxClass instance and bind the name to it.
 
     Note the two-step definition. Nystrom notes, this allows the class
-    definition to reference its own name. I am using Environment.store()
-    (which I added) because it takes a name string not a token.
+    definition to reference its own name.
     '''
     def visitClass(self, client:Stmt.Class):
+        superclass = None
+        if client.superclass: # is given
+            superclass = self.evaluate(client.superclass)
+            if not isinstance(superclass, LoxClass):
+                raise Interpreter.EvaluationError(
+                    client.superclass.name,
+                    "Superclass must be a class.")
         name_str = client.name.lexeme
         self.environment.define(name_str, None)
+        if client.superclass : # is given,
+            self.environment = Environment(self.environment)
+            self.environment.define("super", superclass) # push a super context
         meth_dict = dict()
         for method in client.methods:
             meth_fun = LoxFunction(method,self.environment,
                                    method.name.lexeme == LoxClass.Init)
             meth_dict[method.name.lexeme]=meth_fun
-        klass = LoxClass(name_str,meth_dict)
-        self.environment.store(name_str,klass)
+        klass = LoxClass(name_str,meth_dict,superclass)
+        if client.superclass : # was given,
+            self.environment = self.environment.enclosing # pop the super context
+        self.environment.assign(name_str,klass)
 
     '''
     SF. Function statement. To "execute" a function declaration is to create
@@ -269,7 +280,7 @@ class Interpreter(ExprVisitor,StmtVisitor):
          some enclosing scope.
     '''
     def visitBreak(self, client:Stmt.Break):
-        self.environment.store(CONTINUE,False)
+        self.environment.define(CONTINUE,False)
     '''
     S4. Block statement. At visitBlock we create the local scope, but then
     pass execution to a subroutine. Why is not clear as of 8.5.2. Can a block
@@ -371,13 +382,13 @@ class Interpreter(ExprVisitor,StmtVisitor):
         depth = self.locals.get(client)
         if depth is None:
             try:
-                return self.globals.get(name)
+                return self.globals.get(name.lexeme)
             except NameError as NE:
                 # the value in BaseException.args is a tuple, (namestring,None)
                 # for the message, extract the string alone.
                 raise Interpreter.EvaluationError(client.name,f"Undefined name {NE.args[0]}")
         # it is local, can't be undefined, so fetch it at its proper depth.
-        return self.environment.getAt(depth, name)
+        return self.environment.getAt(depth, name.lexeme)
 
     '''
     E4. Evaluate an assignment expression, foo=bar. Name resolution as in the above.
@@ -387,12 +398,12 @@ class Interpreter(ExprVisitor,StmtVisitor):
         depth = self.locals.get(client)
         if depth is None:
             try:
-                self.globals.assign(client.name,value)
+                self.globals.assign(client.name.lexeme,value)
                 return value
             except NameError as NE:
                 raise Interpreter.EvaluationError(client.name,f"Undefined name {NE.args[0]}")
         # it is known as a local, so assignment should work.
-        return self.environment.assignAt(depth,client.name,value)
+        return self.environment.assignAt(depth,client.name.lexeme,value)
     '''
     E5. Evaluate a Unary expression, -x or !x.
     '''
@@ -472,8 +483,33 @@ class Interpreter(ExprVisitor,StmtVisitor):
         target.set(client.name,value)
         return value
 
-    def visitThis(self, client:Expr.This)->object:
+    '''
+    E?. Evaluate "this", which means, finding it at whatever depth in
+        the environment chain the Resolver put it at.
+    '''
+    def visitThis(self, client:Expr.This)->LoxClass:
         return self.lookUpVariable(client.keyword, client)
+    '''
+    E?. Evaluate "super.methname". An Expr.Super has two fields, the keyword
+        "super" and the name token of a method. In order to resolve it we
+        need first to find the class corresponding to "super" in the current
+        context. The Resolver will have noted how many environment hops away
+        it is, so get that depth first.
+
+        Then, using the self-admitted hack (see Chapter 13.3) that the "this"
+        class corresponding to the super will be one environment earlier (shallower?)
+        we retrieve its class object. Use that to look up the method name.
+        Bind that method to that (super) class and return it.
+    '''
+    def visitSuper(self, client:Expr.Super)->LoxFunction:
+        depth = self.locals[client]
+        superclass = self.environment.getAt(depth, "super") # type: LoxClass
+        that = self.environment.getAt( depth-1, "this" ) # type: LoxClass
+        method = superclass.findMethod(client.method.lexeme) # type: LoxFunction
+        if method : # was found, is not None,
+            return method.bind(that)
+        raise Interpreter.EvaluationError(client.method,
+                            f"Undefined property '{client.method.lexeme}'." )
 
     '''
     E7. Evaluate a Binary expression.
