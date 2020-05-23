@@ -14,6 +14,30 @@ License:<a rel="license" href="http://creativecommons.org/licenses/by-nc/4.0/"><
 
 (Modified into upside-down "blog" posting sequence, with latest sections at the top by chapter.)
 
+## Chapter 14: the Bytecode Saga begins
+
+But how big a leap is that? I understand bytecodes well. In a side note, Nystrom mentions one of the earliest bytecodes, Wirth's p-code, and links to [that wiki page](https://en.wikipedia.org/wiki/P-code_machine). My personal introduction was in APL\360, which rendered the user's input expression into a string of binary units which it then executed. Not bytes; I think I remember them as 16-bit units. But same idea. Anyway; let's get into it.
+
+I am taken aback by the start of section 14.2, "Getting Started". After a couple of sections introducing the reasons and concepts, he jumps straight into starting a whole new program, `clox`, written in C and starting from the barest of minima. "Fire up your trusty editor," he says, and create `main.c`
+```
+#include "common.h"                     
+int main(int argc, const char* argv[]) {
+  return 0;                             
+}                  
+```
+And here I have a big decision to make.
+
+I had supposed he would bolt a bytecode compiler and VM on the end of the code already built, the Java interpreter. After all, we have already created a perfectly good Scanner, Parser, and Resolver. I imagined he would keep those, but replace the Interpreter with a different "visitor", one that would traverse the AST emitting bytecodes at each node. One pass over the tree, I imagined, would produce a file of bytecodes plus perhaps an auxiliary dict (or dict tree) to act as the namespace. That's what Python does, see, and I expected the same here. Then there might be a bytecode VM written in C.
+
+It's a sensible architecture: the performance of the compilation isn't that important, so leave that in Java (or Python in my case), and focus on runtime performance in the emulator.
+
+But that isn't what he means to do. He is going to have the reader rewrite the whole schmear in C, the scanner, the parser, presumably something like the resolver, all new code in C, leading up to bytecode output for a bytecode machine to process.
+
+Like I say, big decision here. It's not that I don't know C. Once upon a time I knew *C: A Reference Manual* by Harbison and Steele backwards and forwards. But that was in the 90s. Do I want to join Nystrom on this journey?
+
+I think I will read ahead in this chapter, see where he's going for sure. I'm thinking maybe I can stitch together a hermaphrodite out of his code and mine. Stand by.
+
+
 ## Chapter 13
 
 This chapter is a lot of tidying up and small changes to support superclasses and superclass reference syntax. I implemented it by basically looking at each code snippet, finding the corresponding place in my code, and inserting one or two statements.
