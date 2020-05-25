@@ -14,6 +14,12 @@ License:<a rel="license" href="http://creativecommons.org/licenses/by-nc/4.0/"><
 
 (Modified into upside-down "blog" posting sequence, with latest sections at the top by chapter.)
 
+## Suspending
+
+OK, I have decided to suspend work on this. I may come back to it later in the year; if I do it will be to try to understand Nystrom's bytecode spec, and to build a Python-based compiler comprising the current Scanner, Parser and Resolver, generating bytecode output to be executed by the Nystrom VM in C.
+
+Meanwhile I have another hopefully more rewarding project to work on.
+
 ## Chapter 14: the Bytecode Saga begins
 
 But how big a leap is that? I understand bytecodes well. In a side note, Nystrom mentions one of the earliest bytecodes, Wirth's p-code, and links to [that wiki page](https://en.wikipedia.org/wiki/P-code_machine). My personal introduction was in APL\360, which rendered the user's input expression into a string of binary units which it then executed. Not bytes; I think I remember them as 16-bit units. But same idea. Anyway; let's get into it.
